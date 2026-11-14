@@ -8,9 +8,11 @@ I'm Nilay Toshniwal, final-year at BITS Pilani Goa; this is my 5-hour assignment
 
 **Design note (1 page):** [NOTE.md](NOTE.md)
 
-| Settle a dispute | Dashboard | Insights |
-|---|---|---|
-| ![Verdict for a transfer that was sent but never received](docs/dispute.png) | ![Dashboard](docs/dashboard.png) | ![Insights](docs/insights.png) |
+| Settle a dispute | Trace |
+|---|---|
+| ![Verdict for a transfer that was sent but never received](docs/dispute.png) | ![Trace of a transfer that arrived short](docs/trace.png) |
+| **Dashboard** | **Insights** |
+| ![Dashboard](docs/dashboard.png) | ![Insights](docs/insights.png) |
 
 ## The process it supports
 
@@ -134,13 +136,25 @@ Plant codes, material numbers, batch and unit of measure follow SAP's shape. A s
 ## Project layout
 
 ```
-app.py                 web pages + JSON API
-tracker/core.py        business rules and the trail
+app.py                 web pages and JSON API (thin: every rule lives in tracker/core.py)
+tracker/core.py        business rules, the trail, verdicts, trace, metrics, message parsing
 tracker/schema.sql     data model
-tracker/seed.py        builds the demo database
+tracker/seed.py        builds the demo database (master data, job orders, two weeks of history)
 data/                  dummy job order file and master data
-templates/, static/    UI
+templates/, static/    UI (server-rendered HTML, one stylesheet)
 tests/test_flow.py     24 end-to-end checks
-run.sh                 one-command start
-render.yaml            config for an alternative host (Render); the live demo runs on PythonAnywhere
+docs/                  screenshots for this README
+run.sh                 one-command start (and `reset`, `test`)
+pyproject.toml         lint and test settings
+.github/workflows/     runs lint and tests on every push
 ```
+
+## Development
+
+```bash
+./run.sh test                    # 24 tests
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/ruff check .           # lint
+```
+
+The live demo is a PythonAnywhere web app pointing at this repo: `git pull`, `python -m tracker.seed` for fresh sample data, then reload.

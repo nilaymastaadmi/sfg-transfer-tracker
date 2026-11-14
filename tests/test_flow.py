@@ -134,11 +134,41 @@ def test_web_send_receive_and_api(tmp_path, monkeypatch):
     import app as appmod
     monkeypatch.setattr(appmod, "DB_PATH", db)
     client = appmod.app.test_client()
-    for path in ["/", "/send", "/receive", "/transfers", "/job-orders", "/trail", "/integration",
-                 "/job-orders/JO-2026-1041", "/transfers/TRF-2026-00001", "/transfers/TRF-2026-00001/slip",
-                 "/export/sap-goods-movements.csv", "/api/events", "/api/trail/verify",
-                 "/insights", "/api/insights", "/process", "/directory", "/digest", "/send?msg=JO-2026-1042%3A%2024%20end%20plates", "/trace", "/trace?q=TRF-2026-00026", "/api/trail/fingerprint", "/trail?check=abcdef12", "/trace?q=SFG-SM-2002", "/trace?q=JO-2026-1041", "/plants/1100", "/plants/1300", "/parts/SFG-SM-2002", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
-                 "/api/transfers/TRF-2026-00001/verdict"]:
+    pages = [
+        "/",
+        "/send",
+        "/receive",
+        "/transfers",
+        "/job-orders",
+        "/trail",
+        "/integration",
+        "/job-orders/JO-2026-1041",
+        "/transfers/TRF-2026-00001",
+        "/transfers/TRF-2026-00001/slip",
+        "/export/sap-goods-movements.csv",
+        "/api/events",
+        "/api/trail/verify",
+        "/insights",
+        "/api/insights",
+        "/process",
+        "/directory",
+        "/digest",
+        "/send?msg=JO-2026-1042%3A%2024%20end%20plates",
+        "/trace",
+        "/trace?q=TRF-2026-00026",
+        "/api/trail/fingerprint",
+        "/trail?check=abcdef12",
+        "/trace?q=SFG-SM-2002",
+        "/trace?q=JO-2026-1041",
+        "/plants/1100",
+        "/plants/1300",
+        "/parts/SFG-SM-2002",
+        "/dispute",
+        "/dispute?q=TRF-2026-00001",
+        "/dispute?q=JO-2026-1042",
+        "/api/transfers/TRF-2026-00001/verdict",
+    ]
+    for path in pages:
         assert client.get(path).status_code == 200, path
     r = client.post("/send", data={"job_order_no": "JO-2026-1043", "from_plant": "1200", "from_dept": "SM",
                                    "to_plant": "1300", "sent_by": "Web", "material_1": "SFG-SM-2003",
@@ -253,7 +283,8 @@ def test_trace_follows_anything(tmp_path):
     c = seed.build(str(tmp_path / "tr.db"), demo=True)
     t = core.trace(c, "TRF-2026-00026")
     assert t["kind"] == "transfer" and t["steps"][3]["state"] == "done" and t["events"]
-    batch = c.execute("SELECT batch FROM transfer_lines WHERE transfer_no = 'TRF-2026-00026' AND batch <> ''").fetchone()[0]
+    batch = c.execute("SELECT batch FROM transfer_lines WHERE transfer_no = 'TRF-2026-00026'"
+                      " AND batch <> ''").fetchone()[0]
     b = core.trace(c, batch.lower())
     assert b["kind"] == "batch" and "TRF-2026-00026" in b["transfers"]
     assert core.trace(c, "SFG-SM-2002")["kind"] == "part"
@@ -298,10 +329,11 @@ def test_shift_digest(tmp_path):
 def test_parse_message_fills_a_send(con):
     p = core.parse_message(con, "JO-2026-1042: 24 end plates and 12 drain pans, pickup DXB-K-55210")
     assert p["job_order_no"] == "JO-2026-1042" and p["from_plant"] == "1200" and p["to_plant"] == "1300"
-    assert [(l["material_no"], l["qty"]) for l in p["lines"]] == [("SFG-SM-2001", 24), ("SFG-SM-2003", 12)]
+    assert [(ln["material_no"], ln["qty"]) for ln in p["lines"]] == [("SFG-SM-2001", 24), ("SFG-SM-2003", 12)]
     assert p["vehicle_ref"].lower().startswith("pickup")
     h = core.parse_message(con, "jo 2026 1041 sending 20 inlet headers and 20 suction headers on trolley T-04")
-    assert {l["material_no"] for l in h["lines"]} == {"SFG-HDR-1001", "SFG-HDR-1002"} and h["from_plant"] == "1100"
+    assert {ln["material_no"] for ln in h["lines"]} == {"SFG-HDR-1001", "SFG-HDR-1002"}
+    assert h["from_plant"] == "1100"
     assert core.parse_message(con, "24 end plates")["warnings"]
     mixed = core.parse_message(con, "JO-2026-1041 20 inlet headers and 40 end plates")
     assert "different plants" in " ".join(mixed["warnings"])

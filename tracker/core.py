@@ -9,6 +9,7 @@ functions, so there is exactly one set of rules.
 import hashlib
 import json
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -355,7 +356,8 @@ def _validate_send(con, job_order_no, from_plant, from_dept, to_plant, lines, se
         room = comp["qty_required"] - done
         if qty > room:
             raise TrackerError(f"Line {i}: {job_order_no} needs {comp['qty_required']:g} x {mat}; "
-                               f"{done:g} are already received or on the way, so at most {max(room, 0):g} more can be sent.")
+                               f"{done:g} are already received or on the way, "
+                               f"so at most {max(room, 0):g} more can be sent.")
         clean.append({"material_no": mat, "qty": qty, "uom": m["uom"],
                       "batch": str(ln.get("batch") or "").strip()})
     if not clean:
@@ -702,7 +704,8 @@ def dispute_verdict(con, transfer_no, sla_hours, now=None):
     open_d = [d for d in disc if d["status"] == "OPEN"]
 
     if t["status"] == "IN_TRANSIT":
-        got_txt = f"No receipt has been confirmed at plant {t['to_plant']}. The parts have been in transit {h:.1f} hours."
+        got_txt = (f"No receipt has been confirmed at plant {t['to_plant']}. "
+                   f"The parts have been in transit {h:.1f} hours.")
         if h > sla_hours:
             got_txt += f" That is past the {sla_hours:g}-hour limit."
         custody = (f"Last confirmed hand-off: plant {t['from_plant']} to "
@@ -803,11 +806,12 @@ def trace(con, q):
     elif con.execute("SELECT 1 FROM job_orders WHERE job_order_no = ?", (q,)).fetchone():
         kind = "job order"
         transfers = [r[0] for r in con.execute("SELECT transfer_no FROM transfers WHERE job_order_no = ?", (q,))]
-        extra_events = [r for r in con.execute("SELECT * FROM events WHERE event_type = 'JOB_ORDERS_SYNCED' ORDER BY id")
-                        if q in r["payload"]]
+        syncs = con.execute("SELECT * FROM events WHERE event_type = 'JOB_ORDERS_SYNCED' ORDER BY id")
+        extra_events = [r for r in syncs if q in r["payload"]]
     elif con.execute("SELECT 1 FROM materials WHERE material_no = ?", (q,)).fetchone():
         kind = "part"
-        transfers = [r[0] for r in con.execute("SELECT DISTINCT transfer_no FROM transfer_lines WHERE material_no = ?", (q,))]
+        transfers = [r[0] for r in con.execute(
+            "SELECT DISTINCT transfer_no FROM transfer_lines WHERE material_no = ?", (q,))]
     else:
         rows = con.execute("SELECT DISTINCT transfer_no FROM transfer_lines WHERE UPPER(batch) = ?", (q,)).fetchall()
         if rows:
@@ -824,16 +828,19 @@ def trace(con, q):
         real = [d for d in disc if d["kind"] != "NOT_RECEIVED"]
         steps = [
             {"label": "Job order", "detail": tr["job_order_no"], "state": "done"},
-            {"label": "Sent", "detail": f"{tr['from_plant']}/{tr['from_dept']} by {tr['sent_by']}", "state": "done", "ts": tr["sent_at"]},
+            {"label": "Sent", "detail": f"{tr['from_plant']}/{tr['from_dept']} by {tr['sent_by']}",
+             "state": "done", "ts": tr["sent_at"]},
             {"label": "In transit", "detail": tr["vehicle_ref"] or "transport",
              "state": "now" if tr["status"] == "IN_TRANSIT" else "done"},
-            {"label": "Counted", "detail": (f"at {tr['to_plant']} by {tr['received_by']}" if tr["received_at"] else "waiting"),
+            {"label": "Counted",
+             "detail": f"at {tr['to_plant']} by {tr['received_by']}" if tr["received_at"] else "waiting",
              "state": "done" if tr["received_at"] else "todo", "ts": tr["received_at"]},
             {"label": "Differences", "detail": ("none" if tr["received_at"] and not real else
                                                 (f"{len(real)} raised" if real else "after the count")),
              "state": ("todo" if not tr["received_at"] else ("done" if not real else
                        ("done" if all(d["status"] == "RESOLVED" for d in real) else "now")))},
-            {"label": "SAP 303 / 305", "detail": "export ready" if tr["received_at"] else "303 ready, 305 after the count",
+            {"label": "SAP 303 / 305",
+             "detail": "export ready" if tr["received_at"] else "303 ready, 305 after the count",
              "state": "done" if tr["received_at"] else "todo"},
         ]
     return {"kind": kind, "q": q, "transfers": transfers,
@@ -863,7 +870,8 @@ def shift_digest(con, sla_hours, now=None, hours=12):
         lines.append(f"Overdue ({len(late)}):")
         for t in late:
             h = (now - from_iso(t["sent_at"])).total_seconds() / 3600
-            lines.append(f"- {t['transfer_no']} {t['from_plant']} to {t['to_plant']}, {h:.0f} h, sent by {t['sent_by']}")
+            lines.append(f"- {t['transfer_no']} {t['from_plant']} to {t['to_plant']}, "
+                         f"{h:.0f} h, sent by {t['sent_by']}")
     else:
         lines.append("Overdue: none.")
     if open_d:
@@ -881,14 +889,12 @@ def shift_digest(con, sla_hours, now=None, hours=12):
 
 # --- send by message -------------------------------------------------------
 
-import re as _re
-
 _STOP = {"x", "pcs", "pc", "nos", "no", "of", "the", "and", "to", "for", "from", "plant", "jo", "sent", "sending"}
 
 
 def _words(s):
     out = set()
-    for w in _re.findall(r"[a-z0-9/]+", s.lower()):
+    for w in re.findall(r"[a-z0-9/]+", s.lower()):
         if w in _STOP:
             continue
         out.add(w[:-1] if w.endswith("s") and len(w) > 3 else w)
@@ -902,7 +908,7 @@ def parse_message(con, text):
     who makes them, and a person still checks and confirms the form."""
     text = (text or "").strip()
     out = {"lines": [], "warnings": []}
-    m = _re.search(r"JO[\s-]*(\d{4})[\s-]*(\d{3,4})", text, _re.I) or _re.search(r"JO[\s-]*(\d{3,4})\b", text, _re.I)
+    m = re.search(r"JO[\s-]*(\d{4})[\s-]*(\d{3,4})", text, re.I) or re.search(r"JO[\s-]*(\d{3,4})\b", text, re.I)
     if not m:
         out["warnings"].append("No job order found. Add one like JO-2026-1042.")
         return out
@@ -915,7 +921,8 @@ def parse_message(con, text):
     bom = con.execute("SELECT c.*, m.description FROM job_order_components c JOIN materials m USING (material_no)"
                       " WHERE job_order_no = ?", (jo_no,)).fetchall()
     rest = text[m.end():]
-    for qm in _re.finditer(r"(\d+)\s*(?:x|pcs|nos)?\s+([A-Za-z][A-Za-z0-9/ \-.]{2,40}?)(?=,|;|\band\b|\d+\s|$|\n|\.)", rest, _re.I):
+    qty_phrase = r"(\d+)\s*(?:x|pcs|nos)?\s+([A-Za-z][A-Za-z0-9/ \-.]{2,40}?)(?=,|;|\band\b|\d+\s|$|\n|\.)"
+    for qm in re.finditer(qty_phrase, rest, re.I):
         qty, phrase = int(qm.group(1)), qm.group(2).strip()
         exact = [c for c in bom if c["material_no"].lower() in phrase.lower()]
         best = exact[0] if exact else None
@@ -937,10 +944,13 @@ def parse_message(con, text):
         d = con.execute("SELECT dept_code FROM departments WHERE plant_code = ? ORDER BY dept_code", (p,)).fetchone()
         mat_dept = con.execute("SELECT dept_code FROM materials WHERE material_no = ?",
                                (out["lines"][0]["material_no"],)).fetchone()
-        out["from_dept"] = (mat_dept["dept_code"] if mat_dept and mat_dept["dept_code"] else d["dept_code"]) if d else ""
+        if mat_dept and mat_dept["dept_code"]:
+            out["from_dept"] = mat_dept["dept_code"]
+        else:
+            out["from_dept"] = d["dept_code"] if d else ""
     elif len(plants) > 1:
         out["warnings"].append("Those parts come from different plants; send them as separate transfers.")
-    v = _re.search(r"((?:forklift\s+)?trolley\s*[A-Z0-9-]+|pickup\s*[A-Z0-9-]+|truck\s*[A-Z0-9-]+)", text, _re.I)
+    v = re.search(r"((?:forklift\s+)?trolley\s*[A-Z0-9-]+|pickup\s*[A-Z0-9-]+|truck\s*[A-Z0-9-]+)", text, re.I)
     if v:
         out["vehicle_ref"] = v.group(1).strip()
     if not out["lines"] and not out["warnings"]:

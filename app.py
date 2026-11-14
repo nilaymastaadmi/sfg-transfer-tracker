@@ -9,9 +9,7 @@ import json
 import os
 import re
 
-from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template,
-                   request, url_for)
-
+from flask import Flask, Response, abort, flash, g, jsonify, redirect, render_template, request, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from tracker import core, seed
