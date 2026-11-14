@@ -1,7 +1,7 @@
 # SFG Transfer Tracker: design note
 
 Nilay Toshniwal, BITS Pilani Goa. Indus International AI assignment, 14 Nov 2026.  
-Live demo: https://sfg-transfer-tracker-jixb.onrender.com · Code: https://github.com/nilaymastaadmi/sfg-transfer-tracker
+Live demo: <https://sfg-transfer-tracker-jixb.onrender.com> · Code: <https://github.com/nilaymastaadmi/sfg-transfer-tracker>
 
 **The problem as I read it.** Semi-finished parts from Headers and Sheet Metal move between three plants with no record. When something goes missing, it's one plant's word against the other's. So the goal isn't a dashboard. It's a record both plants trust: who sent what and when, who received it, and what didn't match.
 
