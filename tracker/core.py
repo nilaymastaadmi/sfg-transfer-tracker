@@ -468,7 +468,7 @@ def sap_goods_movements(con):
                 "ENTRY_QNT": ln["qty_sent"] if sent else ln["qty_received"],
                 "ENTRY_UOM": batch["uom"],
                 "MOVE_PLANT": t["to_plant"] if sent else t["from_plant"],
-                "ITEM_TEXT": f"JO {t['job_order_no']}"
+                "ITEM_TEXT": t["job_order_no"]
                              + ("" if sent or not ln.get("qty_damaged") else f"; {ln['qty_damaged']:g} damaged"),
                 "POSTED_IN_SAP": "N",
             })
