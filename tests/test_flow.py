@@ -137,7 +137,7 @@ def test_web_send_receive_and_api(tmp_path, monkeypatch):
     for path in ["/", "/send", "/receive", "/transfers", "/job-orders", "/trail", "/integration",
                  "/job-orders/JO-2026-1041", "/transfers/TRF-2026-00001", "/transfers/TRF-2026-00001/slip",
                  "/export/sap-goods-movements.csv", "/api/events", "/api/trail/verify",
-                 "/insights", "/api/insights", "/process", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
+                 "/insights", "/api/insights", "/process", "/directory", "/plants/1100", "/plants/1300", "/parts/SFG-SM-2002", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
                  "/api/transfers/TRF-2026-00001/verdict"]:
         assert client.get(path).status_code == 200, path
     r = client.post("/send", data={"job_order_no": "JO-2026-1043", "from_plant": "1200", "from_dept": "SM",

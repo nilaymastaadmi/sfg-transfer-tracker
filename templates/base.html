@@ -15,6 +15,7 @@
       <a href="{{ url_for('receive_queue') }}" class="{{ 'on' if request.endpoint in ('receive_queue','receive') }}">Receive</a>
       <a href="{{ url_for('dispute') }}" class="{{ 'on' if request.endpoint=='dispute' }}">Settle a dispute</a>
       <a href="{{ url_for('dashboard') }}" class="{{ 'on' if request.endpoint=='dashboard' }}">Dashboard</a>
+      <a href="{{ url_for('directory_page') }}" class="{{ 'on' if request.endpoint in ('directory_page','plant_page','part_page') }}">Directory</a>
       <a href="{{ url_for('transfers') }}" class="{{ 'on' if request.endpoint in ('transfers','transfer_detail') }}">Transfers</a>
       <a href="{{ url_for('job_orders') }}" class="{{ 'on' if request.endpoint in ('job_orders','job_order_detail') }}">Job orders</a>
       <a href="{{ url_for('insights_page') }}" class="{{ 'on' if request.endpoint=='insights_page' }}">Insights</a>

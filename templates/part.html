@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge with context %}
+{% block title %}{{ p.m.material_no }} | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<p class="small"><a href="{{ url_for('directory_page') }}">Directory</a> / Part</p>
+<h1>{{ p.m.material_no }}</h1>
+<p class="muted">{{ p.m.description }} &middot; made in {{ p.m.plant_code }} {{ p.m.dept_name }} &middot; counted in {{ p.m.uom }}</p>
+<div class="kpis">
+  <div class="kpi"><span class="n">{{ p.pcs_in_transit|qty }}</span><span>pieces in transit right now</span></div>
+  <div class="kpi"><span class="n">{{ p.received_good|qty }}</span><span>received good (all time)</span></div>
+  <div class="kpi {{ 'warn' if p.short or p.damaged }}"><span class="n">{{ (p.short + p.damaged)|qty }}</span><span>short or damaged ({{ p.short|qty }} / {{ p.damaged|qty }})</span></div>
+  <div class="kpi"><span class="n">{{ p.rows|length }}</span><span>shipments that carried it</span></div>
+</div>
+<section class="card">
+  <h2>Where it is now and where it has been</h2>
+  <table class="small">
+    <tr><th>Transfer</th><th>Job order</th><th>Route</th><th>Batch</th><th>Sent</th><th>Received</th><th>Status</th></tr>
+    {% for r in p.rows[:25] %}
+    <tr><td><a href="{{ url_for('transfer_detail', tno=r.transfer_no) }}">{{ r.transfer_no }}</a></td><td>{{ r.job_order_no }}</td>
+      <td>{{ r.from_plant }} &rarr; {{ r.to_plant }}</td><td>{{ r.batch or '-' }}</td>
+      <td>{% if r.status == 'IN_TRANSIT' %}<span class="muted">hidden until counted</span>{% else %}{{ r.qty_sent|qty }}{% endif %}</td>
+      <td>{{ r.qty_received|qty if r.qty_received is not none else '-' }}</td><td>{{ badge(r.status) }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Directory | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>Directory</h1>
+<p class="muted">Every shipment, every plant and every part, all read from the same trail. Open a plant to see what's going out and coming in, or a part to see where its pieces are right now. All shipments are on the <a href="{{ url_for('transfers') }}">Transfers</a> list.</p>
+
+<h2 class="section">Plants</h2>
+<div class="grid3">
+{% for v in d.plants %}
+  <a class="card plantcard" href="{{ url_for('plant_page', code=v.plant.plant_code) }}">
+    <div class="label">{{ v.plant.plant_code }}</div>
+    <h3>{{ v.plant.name.split(' - ')[-1] }}</h3>
+    <div class="small muted">{{ v.depts|map(attribute='name')|join(', ') }}</div>
+    <div class="mini">
+      <span><b>{{ v.out_transit|length }}</b> going out</span>
+      <span><b>{{ v.in_transit|length }}</b> coming in</span>
+      <span class="{{ 'warn-t' if v.disc }}"><b>{{ v.disc|length }}</b> open issues</span>
+    </div>
+  </a>
+{% endfor %}
+</div>
+
+<h2 class="section">Parts</h2>
+<section class="card">
+<table>
+  <tr><th>Part</th><th>Made in</th><th>Sent (all time)</th><th>In transit now</th><th>Received good</th><th>Short / damaged</th></tr>
+  {% for p in d.parts %}
+  <tr><td><a href="{{ url_for('part_page', mat=p.m.material_no) }}"><b>{{ p.m.material_no }}</b></a><br><span class="muted small">{{ p.m.description }}</span></td>
+    <td class="small">{{ p.m.plant_code }} {{ p.m.dept_name }}</td>
+    <td>{{ p.sent|qty }}</td>
+    <td>{% if p.pcs_in_transit %}<span class="tag">{{ p.pcs_in_transit|qty }}</span>{% else %}0{% endif %}</td>
+    <td>{{ p.received_good|qty }}</td>
+    <td>{% if p.short or p.damaged %}<span class="tag warn">{{ p.short|qty }} / {{ p.damaged|qty }}</span>{% else %}0 / 0{% endif %}</td></tr>
+  {% endfor %}
+</table>
+</section>
+{% endblock %}

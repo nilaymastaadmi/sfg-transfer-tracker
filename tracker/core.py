@@ -719,3 +719,53 @@ def dispute_verdict(con, transfer_no, sla_hours, now=None):
     return {"t": t, "lines": lines, "disc": disc, "events": len(events), "intact": intact,
             "chain_ok": chain_ok, "mismatches": mismatches, "sent_txt": sent_txt, "got_txt": got_txt,
             "custody": custody, "verdict": verdict, "level": level}
+
+
+# --- directory: per plant and per part -------------------------------------
+
+def plant_view(con, plant_code, sla_hours, now=None):
+    p = con.execute("SELECT * FROM plants WHERE plant_code = ?", (plant_code,)).fetchone()
+    if not p:
+        return None
+    out = con.execute("SELECT * FROM transfers WHERE from_plant = ? ORDER BY sent_at DESC", (plant_code,)).fetchall()
+    inc = con.execute("SELECT * FROM transfers WHERE to_plant = ? ORDER BY sent_at DESC", (plant_code,)).fetchall()
+    late = {t["transfer_no"] for t in overdue_transfers(con, sla_hours, now)}
+    disc = con.execute(
+        "SELECT d.*, l.material_no FROM discrepancies d JOIN transfers t USING (transfer_no)"
+        " LEFT JOIN transfer_lines l ON l.transfer_no = d.transfer_no AND l.line_no = d.line_no"
+        " WHERE d.status = 'OPEN' AND (t.from_plant = ? OR t.to_plant = ?) ORDER BY d.raised_at DESC",
+        (plant_code, plant_code)).fetchall()
+    depts = con.execute("SELECT * FROM departments WHERE plant_code = ?", (plant_code,)).fetchall()
+    return {"plant": p, "depts": depts, "out": out, "inc": inc, "late": late, "disc": disc,
+            "out_transit": [t for t in out if t["status"] == "IN_TRANSIT"],
+            "in_transit": [t for t in inc if t["status"] == "IN_TRANSIT"]}
+
+
+def part_view(con, material_no):
+    m = con.execute("SELECT m.*, d.name AS dept_name, d.plant_code FROM materials m"
+                    " LEFT JOIN departments d USING (dept_code) WHERE material_no = ?", (material_no,)).fetchone()
+    if not m:
+        return None
+    rows = con.execute(
+        "SELECT l.*, t.job_order_no, t.from_plant, t.to_plant, t.status, t.sent_at, t.received_at"
+        " FROM transfer_lines l JOIN transfers t USING (transfer_no)"
+        " WHERE l.material_no = ? ORDER BY t.sent_at DESC", (material_no,)).fetchall()
+    in_transit = [r for r in rows if r["status"] == "IN_TRANSIT"]
+    disc = con.execute("SELECT d.* FROM discrepancies d JOIN transfer_lines l"
+                       " ON l.transfer_no = d.transfer_no AND l.line_no = d.line_no"
+                       " WHERE l.material_no = ? ORDER BY d.raised_at DESC", (material_no,)).fetchall()
+    return {"m": m, "rows": rows, "in_transit": in_transit, "disc": disc,
+            "sent": sum(r["qty_sent"] for r in rows),
+            "received_good": sum((r["qty_received"] or 0) - (r["qty_damaged"] or 0) for r in rows
+                                 if r["status"] != "IN_TRANSIT"),
+            "pcs_in_transit": sum(r["qty_sent"] for r in in_transit),
+            "short": sum(d["qty"] or 0 for d in disc if d["kind"] == "SHORT"),
+            "damaged": sum(d["qty"] or 0 for d in disc if d["kind"] == "DAMAGED")}
+
+
+def directory(con, sla_hours, now=None):
+    plants = [plant_view(con, r["plant_code"], sla_hours, now)
+              for r in con.execute("SELECT plant_code FROM plants ORDER BY plant_code")]
+    parts = [part_view(con, r["material_no"])
+             for r in con.execute("SELECT material_no FROM materials ORDER BY material_no")]
+    return {"plants": plants, "parts": parts}

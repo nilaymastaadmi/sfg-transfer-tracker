@@ -333,6 +333,27 @@ def api_verdict(tno):
                    | {"transfer_no": tno, "open_discrepancies": [dict(d) for d in v["disc"] if d["status"] == "OPEN"]})
 
 
+@app.route("/directory")
+def directory_page():
+    return render_template("directory.html", d=core.directory(db(), SLA_HOURS))
+
+
+@app.route("/plants/<code>")
+def plant_page(code):
+    v = core.plant_view(db(), code, SLA_HOURS)
+    if not v:
+        abort(404)
+    return render_template("plant.html", v=v)
+
+
+@app.route("/parts/<mat>")
+def part_page(mat):
+    p = core.part_view(db(), mat)
+    if not p:
+        abort(404)
+    return render_template("part.html", p=p)
+
+
 @app.route("/insights")
 def insights_page():
     return render_template("insights.html", i=core.insights(db(), SLA_HOURS))

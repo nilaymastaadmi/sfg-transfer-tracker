@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge with context %}
+{% block title %}{{ v.plant.plant_code }} | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<p class="small"><a href="{{ url_for('directory_page') }}">Directory</a> / Plant</p>
+<h1>{{ v.plant.plant_code }} {{ v.plant.name }}</h1>
+<p class="muted">{{ v.plant.location }} &middot; departments: {{ v.depts|map(attribute='name')|join(', ') }}</p>
+<div class="kpis">
+  <div class="kpi"><span class="n">{{ v.out_transit|length }}</span><span>sent, waiting for the other plant</span></div>
+  <div class="kpi"><span class="n">{{ v.in_transit|length }}</span><span>coming in, to receive here</span></div>
+  <div class="kpi {{ 'warn' if v.disc }}"><span class="n">{{ v.disc|length }}</span><span>open issues involving this plant</span></div>
+  <div class="kpi"><span class="n">{{ v.out|length + v.inc|length }}</span><span>shipments in and out</span></div>
+</div>
+<div class="grid2">
+{% for title, rows, other in (('Coming in', v.inc, 'from_plant'), ('Going out', v.out, 'to_plant')) %}
+<section class="card">
+  <h2>{{ title }}</h2>
+  <table class="small">
+    <tr><th>Transfer</th><th>{{ 'From' if other == 'from_plant' else 'To' }}</th><th>Sent</th><th>Status</th></tr>
+    {% for t in rows[:15] %}
+    <tr class="{{ 'row-alert' if t.transfer_no in v.late }}"><td><a href="{{ url_for('transfer_detail', tno=t.transfer_no) }}">{{ t.transfer_no }}</a><br><span class="muted">{{ t.job_order_no }}</span></td>
+      <td>{{ t[other] }}</td><td>{{ t.sent_at|local }}</td><td>{{ badge(t.status) }}{% if t.transfer_no in v.late %} <span class="tag alert">Overdue</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="4" class="muted">None.</td></tr>{% endfor %}
+  </table>
+  {% if rows|length > 15 %}<p class="small muted">Showing the latest 15 of {{ rows|length }}.</p>{% endif %}
+</section>
+{% endfor %}
+</div>
+{% if v.disc %}
+<section class="card">
+  <h2>Open issues</h2>
+  <table class="small">{% for d in v.disc %}<tr><td><a href="{{ url_for('dispute', q=d.transfer_no) }}">{{ d.transfer_no }}</a></td><td>{{ d.kind|replace('_',' ')|title }}{% if d.qty %}: {{ d.qty|qty }} x {{ d.material_no }}{% endif %}</td><td>{{ d.raised_at|local }}, {{ d.raised_by }}</td></tr>{% endfor %}</table>
+</section>
+{% endif %}
+{% endblock %}

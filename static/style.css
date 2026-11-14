@@ -155,3 +155,12 @@ ol.steps li { margin: 7px 0; }
 .roi label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #3b4756; }
 @media (max-width: 760px) { .roi { grid-template-columns: 1fr 1fr; } }
 p.big { font-size: 16px; font-weight: 600; margin: 12px 0 0; }
+h2.section { font-size: 16px; margin: 18px 0 10px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 8px; }
+@media (max-width: 860px) { .grid3 { grid-template-columns: 1fr; } }
+a.plantcard { color: var(--ink); display: block; }
+a.plantcard:hover { text-decoration: none; border-color: var(--copper); }
+.plantcard .label { font-size: 12px; font-weight: 700; color: var(--copper); }
+.plantcard h3 { margin: 2px 0 4px; font-size: 17px; }
+.plantcard .mini { display: flex; gap: 14px; margin-top: 10px; font-size: 13px; flex-wrap: wrap; }
+.warn-t { color: var(--warn); }
