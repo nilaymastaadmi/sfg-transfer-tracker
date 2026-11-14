@@ -9,7 +9,7 @@
 <body>
 <header class="top">
   <div class="wrap top-inner">
-    <a class="brand" href="{{ url_for('dashboard') }}"><span class="dot"></span>SFG Transfer Tracker</a>
+    <a class="brand" href="{{ url_for('dashboard') }}">SFG Transfer Tracker</a>
     <nav>
       <a href="{{ url_for('send') }}" class="{{ 'on' if request.endpoint=='send' }}">Send</a>
       <a href="{{ url_for('receive_queue') }}" class="{{ 'on' if request.endpoint in ('receive_queue','receive') }}">Receive</a>
@@ -30,7 +30,7 @@
   {% endwith %}
   {% block body %}{% endblock %}
 </main>
-<footer class="wrap foot">Prototype for Indus International FZC. Dummy data: 3 plants, Headers and Sheet Metal SFGs, job orders from <code>data/job_orders.json</code>. Times in Gulf Standard Time.</footer>
+<footer class="wrap foot">Built by Nilay Toshniwal (BITS Pilani Goa) as a 5-hour assignment for Indus International, 14 Nov 2026. Every name, plant, part and number here is made up. Times are Gulf Standard Time.</footer>
 <script>
 document.querySelectorAll('form[method="post"]').forEach(f => f.addEventListener('submit', () => {
   f.querySelectorAll('button[type="submit"], button:not([type])').forEach(b => { b.disabled = true; b.textContent = 'Saving...'; });

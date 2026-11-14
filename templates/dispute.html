@@ -2,7 +2,7 @@
 {% block title %}Settle a dispute | SFG Transfer Tracker{% endblock %}
 {% block body %}
 <h1>Settle a dispute</h1>
-<p class="muted">"We sent it." "We never got it." Enter the transfer number from the slip, or a job order, and get the answer from the record.</p>
+<p class="muted">Enter the transfer number from the slip, or a job order, and see what the record says.</p>
 <form method="get" class="filters">
   <label>Transfer or job order number
     <input name="q" value="{{ q }}" placeholder="e.g. TRF-2026-00002 or JO-2026-1042" style="min-width:280px" autofocus>
@@ -39,7 +39,7 @@
       Raised by {{ d.raised_by }} on {{ d.raised_at|local }}.
       {% if d.status == 'RESOLVED' %}Settled by {{ d.resolved_by }}: "{{ d.resolution }}"{% else %}<b>Still open.</b>{% endif %}</li>
     {% endfor %}
-    <li><b>Can this record be trusted?</b>
+    <li><b>Is the record intact?</b>
       {% if v.intact %}Yes. The {{ v.events }} entries for this transfer are in the append-only log, the hash chain checks out and the working tables match the log.
       {% else %}<span class="tag alert">Record altered</span> The log or the tables were changed outside the app{% if v.mismatches %}: {{ v.mismatches|join('; ') }}{% endif %}. Treat this record as disputed.{% endif %}</li>
   </ol>

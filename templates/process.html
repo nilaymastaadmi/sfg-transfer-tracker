@@ -21,7 +21,7 @@
     <li><b>Send</b> (sender, about 30 s): pick the job order and your plant; the parts it still needs are prefilled; adjust to what's on the trolley; print the slip.</li>
     <li><b>Move</b>: the slip travels with the parts. It has a QR code and no quantities.</li>
     <li><b>Receive</b> (storekeeper, about 30 s): scan the QR, count each part without seeing the sent number (blind count), confirm.</li>
-    <li><b>Exceptions surface by themselves</b>: any difference becomes a discrepancy for both plants; anything not received in {{ SLA_HOURS|qty }} hours goes red; either plant can flag "not received".</li>
+    <li><b>Late and short parts get flagged</b>: any difference becomes a discrepancy for both plants; anything not received in {{ SLA_HOURS|qty }} hours goes red; either plant can flag "not received".</li>
     <li><b>Settle with the record</b>: <a href="{{ url_for('dispute') }}">Settle a dispute</a> answers who sent what, who confirmed it and who last had the parts, from an append-only trail.</li>
   </ol>
 </section>
@@ -39,10 +39,10 @@
 </section>
 <section class="card">
   <h2>Where AI fits, and where it doesn't</h2>
-  <p><b>Not in the record.</b> The trail settles disputes between plants, so it stays rule-based and exact. A guess has no place in it.</p>
+  <p><b>Not in the record.</b> The trail settles disputes between plants, so it stays rule-based and exact.</p>
   <p><b>At the edges, where it saves typing or reading:</b></p>
   <ul>
-    <li>Turn a photo of today's paper challan, or a WhatsApp message, into a draft send for a person to confirm.</li>
+    <li>Turn a photo of today's paper delivery note, or a WhatsApp message, into a draft send for a person to confirm.</li>
     <li>A short daily summary for plant heads: what's overdue, which route keeps coming up short, what's still open.</li>
     <li>Read the free-text notes on discrepancies ("dented corner", "left on rack") to find the repeat causes, the way an 8D would.</li>
   </ul>

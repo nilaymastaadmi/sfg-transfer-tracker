@@ -1,6 +1,8 @@
 # SFG Transfer Tracker
 
-A working prototype that tracks semi-finished goods (SFGs) moving between Indus International's three plants, from the moment one plant sends a part to the moment another confirms it arrived. Every step is written to an append-only trail that can't be edited, so when a plant says "we never got it", there is a record to check.
+A working prototype that tracks semi-finished goods (SFGs) moving between Indus International's three plants, from the moment one plant sends a part to the moment another confirms it arrived. Every step is written to an append-only trail (the database rejects edits and deletes), so when a plant says "we never got it", there is a record to check.
+
+I'm Nilay Toshniwal, final-year at BITS Pilani Goa; this is my 5-hour assignment. I put most of the design effort into the dispute case, since that is the pain the brief describes.
 
 **Live demo:** https://mastaadmi.pythonanywhere.com (sample data: 3 plants, 4 open job orders and two weeks of past transfers; anything you send or receive there is saved)
 
@@ -37,7 +39,7 @@ Needs Python 3.10 or newer. On macOS or Linux:
 Then open http://127.0.0.1:5050. The first run creates a virtual environment and installs Flask (about 20 seconds). Data is saved in `instance/sfg_tracker.db` and survives restarts.
 
 - `./run.sh reset` rebuilds the database with fresh demo data
-- `./run.sh test` runs the 18 automated checks
+- `./run.sh test` runs the 19 automated checks
 
 On Windows: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python app.py`.
 
@@ -133,7 +135,7 @@ tracker/schema.sql     data model
 tracker/seed.py        builds the demo database
 data/                  dummy job order file and master data
 templates/, static/    UI
-tests/test_flow.py     18 end-to-end checks
+tests/test_flow.py     19 end-to-end checks
 run.sh                 one-command start
 render.yaml            config for an alternative host (Render); the live demo runs on PythonAnywhere
 ```
