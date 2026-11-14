@@ -4,7 +4,18 @@
 <h1>Send parts to another plant</h1>
 <p class="muted">Fill this in when parts leave your plant. It creates a transfer number and a printable slip that travels with the parts.</p>
 
-<form method="post" class="card form" id="sendForm">
+<form method="get" class="card msgbox">
+  <label><span><b>Got it as a message?</b> Paste it here and the form below fills itself. You still check it and click "Log as sent".</span>
+    <textarea name="msg" rows="2" placeholder="e.g. JO-2026-1042: 24 end plates and 12 drain pans, pickup DXB-K-55210">{{ msg }}</textarea>
+  </label>
+  <button class="btn" type="submit">Fill the form</button>
+  {% if parsed %}
+    {% if parsed.lines %}<div class="flash ok">Read {{ parsed.lines|length }} part line(s) for {{ parsed.job_order_no }}{% if parsed.from_plant %}, from plant {{ parsed.from_plant }}{% endif %}: {% for l in parsed.lines %}"{{ l.matched }}" = {{ l.qty }} x {{ l.material_no }}{{ '; ' if not loop.last }}{% endfor %}. Check below.</div>{% endif %}
+    {% for w in parsed.warnings %}<div class="flash warn">{{ w }}</div>{% endfor %}
+  {% endif %}
+</form>
+
+<form method="post" action="{{ url_for('send') }}" class="card form" id="sendForm">
   <div class="row3">
     <label>Job order
       <select name="job_order_no" id="jo" required>

@@ -22,7 +22,7 @@
 <section class="card fp">
   <h2>Record fingerprint</h2>
   {% if fp %}<p>After {{ fp.events }} entries ({{ fp.ts|local }}): <code class="big">{{ fp.hash[:16] }}</code></p>{% endif %}
-  <p class="small muted">Send this short code to both plant heads at the end of each shift. If anyone ever rebuilt the record, an old fingerprint would no longer be in it. Paste one below to check.</p>
+  <p class="small muted">Send this short code to both plant heads at the end of each shift (the <a href="{{ url_for('digest') }}">shift digest</a> includes it). If anyone ever rebuilt the record, an old fingerprint would no longer be in it. Paste one below to check.</p>
   <form method="get" class="inline">
     <input name="check" value="{{ check }}" placeholder="Paste a fingerprint from an earlier email" class="grow">
     <button class="btn small">Check</button>

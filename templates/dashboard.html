@@ -12,6 +12,7 @@
     <a class="btn" href="{{ url_for('receive_queue') }}">Receive parts</a>
   </div>
 </div>
+<p class="small" style="margin:-6px 0 10px"><a href="{{ url_for('digest') }}">End of shift? Send the shift digest &rarr;</a></p>
 <form method="get" action="{{ url_for('dispute') }}" class="card settle">
   <b>"We sent it." "We never got it."</b>
   <input name="q" placeholder="Transfer number from the slip, e.g. TRF-2026-00025" class="grow">

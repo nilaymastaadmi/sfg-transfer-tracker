@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Shift digest | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>Shift digest</h1>
+<p class="muted">A short summary to send to the plant heads at the end of each shift: what's overdue, what's still open, and the record fingerprint. Sending it every shift is also what keeps a copy of the fingerprint outside the system.</p>
+<section class="card">
+  <pre id="digest" class="digest">{{ text }}</pre>
+  <p>
+    <button class="btn primary" type="button" id="copyBtn">Copy</button>
+    <a class="btn" href="https://wa.me/?text={{ text|urlencode }}" target="_blank" rel="noopener">Share on WhatsApp</a>
+    <span class="small muted" id="copyMsg"></span>
+  </p>
+  <p class="small muted">In production this would go out on its own at shift change (email or a WhatsApp business number). Here you send it yourself, which is also how a pilot would start.</p>
+</section>
+<script>
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('copyMsg');
+  try { await navigator.clipboard.writeText(document.getElementById('digest').textContent); msg.textContent = 'Copied.'; }
+  catch (e) { msg.textContent = 'Select the text and copy it.'; }
+});
+</script>
+{% endblock %}

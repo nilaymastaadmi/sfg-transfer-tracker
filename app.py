@@ -158,8 +158,16 @@ def send():
     depts = [dict(d) for d in con.execute("SELECT * FROM departments ORDER BY plant_code, dept_code")]
     defaults = {"from_plant": request.cookies.get("sfg_from_plant", ""),
                 "from_dept": request.cookies.get("sfg_from_dept", "")}
+    form, parsed = request.form, None
+    msg = request.args.get("msg", "").strip()
+    if msg and request.method == "GET":
+        parsed = core.parse_message(con, msg)
+        form = {k: parsed.get(k, "") for k in ("job_order_no", "from_plant", "from_dept", "to_plant", "vehicle_ref")}
+        for i, ln in enumerate(parsed["lines"][:5], start=1):
+            form[f"material_{i}"], form[f"qty_{i}"] = ln["material_no"], f"{ln['qty']:g}"
+        form["note"] = "From message: " + msg[:180]
     return render_template("send.html", jos=jos, plants=plants(), depts=depts, bom=bom,
-                           jo_info=jo_info, form=request.form, defaults=defaults)
+                           jo_info=jo_info, form=form, defaults=defaults, msg=msg, parsed=parsed)
 
 
 @app.route("/receive")
@@ -351,6 +359,11 @@ def api_verdict(tno):
 def trace_page():
     q = request.args.get("q", "").strip()
     return render_template("trace.html", q=q, t=core.trace(db(), q) if q else None)
+
+
+@app.route("/digest")
+def digest():
+    return render_template("digest.html", text=core.shift_digest(db(), SLA_HOURS))
 
 
 @app.route("/directory")

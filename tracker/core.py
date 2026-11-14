@@ -838,3 +838,111 @@ def trace(con, q):
         ]
     return {"kind": kind, "q": q, "transfers": transfers,
             "events": [dict(e, data=json.loads(e["payload"])) for e in allev], "steps": steps}
+
+
+# --- shift digest ----------------------------------------------------------
+
+def shift_digest(con, sla_hours, now=None, hours=12):
+    """Plain-text summary for the end of a shift, short enough for a WhatsApp
+    message to plant heads. It carries the record fingerprint, so sending it
+    every shift also keeps a copy of that fingerprint outside the system."""
+    now = now or utcnow()
+    since = to_iso(now - timedelta(hours=hours))
+    sent = con.execute("SELECT COUNT(*) FROM transfers WHERE sent_at >= ?", (since,)).fetchone()[0]
+    rec = con.execute("SELECT COUNT(*) FROM transfers WHERE received_at >= ?", (since,)).fetchone()[0]
+    late = overdue_transfers(con, sla_hours, now)
+    open_d = con.execute(
+        "SELECT d.*, l.material_no FROM discrepancies d LEFT JOIN transfer_lines l"
+        " ON l.transfer_no = d.transfer_no AND l.line_no = d.line_no WHERE d.status = 'OPEN'"
+        " ORDER BY d.raised_at").fetchall()
+    transit = con.execute("SELECT COUNT(*) FROM transfers WHERE status = 'IN_TRANSIT'").fetchone()[0]
+    fp = fingerprint(con)
+    lines = [f"SFG transfers, shift summary {fmt_local(to_iso(now))}",
+             f"Last {hours} h: {sent} sent, {rec} received. {transit} in transit now."]
+    if late:
+        lines.append(f"Overdue ({len(late)}):")
+        for t in late:
+            h = (now - from_iso(t["sent_at"])).total_seconds() / 3600
+            lines.append(f"- {t['transfer_no']} {t['from_plant']} to {t['to_plant']}, {h:.0f} h, sent by {t['sent_by']}")
+    else:
+        lines.append("Overdue: none.")
+    if open_d:
+        lines.append(f"Open issues ({len(open_d)}):")
+        for d in open_d:
+            what = d["kind"].replace("_", " ").lower()
+            qty = f" {d['qty']:g} x {d['material_no']}" if d["qty"] else ""
+            lines.append(f"- {d['transfer_no']} {what}{qty}")
+    else:
+        lines.append("Open issues: none.")
+    if fp:
+        lines.append(f"Record fingerprint: {fp['hash'][:16]} (after {fp['events']} entries)")
+    return "\n".join(lines)
+
+
+# --- send by message -------------------------------------------------------
+
+import re as _re
+
+_STOP = {"x", "pcs", "pc", "nos", "no", "of", "the", "and", "to", "for", "from", "plant", "jo", "sent", "sending"}
+
+
+def _words(s):
+    out = set()
+    for w in _re.findall(r"[a-z0-9/]+", s.lower()):
+        if w in _STOP:
+            continue
+        out.add(w[:-1] if w.endswith("s") and len(w) > 3 else w)
+    return out
+
+
+def parse_message(con, text):
+    """Turn a message like "JO-2026-1042: 24 end plates and 12 drain pans,
+    pickup DXB-K-55210" into a draft send. Rule-based on purpose: it only
+    picks parts on that job order's list, works out the sending plant from
+    who makes them, and a person still checks and confirms the form."""
+    text = (text or "").strip()
+    out = {"lines": [], "warnings": []}
+    m = _re.search(r"JO[\s-]*(\d{4})[\s-]*(\d{3,4})", text, _re.I) or _re.search(r"JO[\s-]*(\d{3,4})\b", text, _re.I)
+    if not m:
+        out["warnings"].append("No job order found. Add one like JO-2026-1042.")
+        return out
+    jo_no = f"JO-{m.group(1)}-{m.group(2)}" if m.lastindex == 2 else f"JO-{utcnow().year}-{m.group(1)}"
+    jo = con.execute("SELECT * FROM job_orders WHERE job_order_no = ?", (jo_no,)).fetchone()
+    if not jo:
+        out["warnings"].append(f"Job order {jo_no} isn't in the job order file.")
+        return out
+    out["job_order_no"], out["to_plant"] = jo_no, jo["assembly_plant"]
+    bom = con.execute("SELECT c.*, m.description FROM job_order_components c JOIN materials m USING (material_no)"
+                      " WHERE job_order_no = ?", (jo_no,)).fetchall()
+    rest = text[m.end():]
+    for qm in _re.finditer(r"(\d+)\s*(?:x|pcs|nos)?\s+([A-Za-z][A-Za-z0-9/ \-.]{2,40}?)(?=,|;|\band\b|\d+\s|$|\n|\.)", rest, _re.I):
+        qty, phrase = int(qm.group(1)), qm.group(2).strip()
+        exact = [c for c in bom if c["material_no"].lower() in phrase.lower()]
+        best = exact[0] if exact else None
+        if not best:
+            pw = _words(phrase)
+            scored = sorted(((len(pw & _words(c["description"] + " " + c["material_no"])), c) for c in bom),
+                            key=lambda x: -x[0])
+            if scored and scored[0][0] > 0 and (len(scored) == 1 or scored[0][0] > scored[1][0]):
+                best = scored[0][1]
+        if best:
+            out["lines"].append({"material_no": best["material_no"], "qty": qty, "matched": phrase,
+                                 "supply_plant": best["supply_plant"]})
+        else:
+            out["warnings"].append(f'Couldn\'t tell which part "{phrase}" is on {jo_no}. Pick it below.')
+    plants = {ln["supply_plant"] for ln in out["lines"]}
+    if len(plants) == 1:
+        p = plants.pop()
+        out["from_plant"] = p
+        d = con.execute("SELECT dept_code FROM departments WHERE plant_code = ? ORDER BY dept_code", (p,)).fetchone()
+        mat_dept = con.execute("SELECT dept_code FROM materials WHERE material_no = ?",
+                               (out["lines"][0]["material_no"],)).fetchone()
+        out["from_dept"] = (mat_dept["dept_code"] if mat_dept and mat_dept["dept_code"] else d["dept_code"]) if d else ""
+    elif len(plants) > 1:
+        out["warnings"].append("Those parts come from different plants; send them as separate transfers.")
+    v = _re.search(r"((?:forklift\s+)?trolley\s*[A-Z0-9-]+|pickup\s*[A-Z0-9-]+|truck\s*[A-Z0-9-]+)", text, _re.I)
+    if v:
+        out["vehicle_ref"] = v.group(1).strip()
+    if not out["lines"] and not out["warnings"]:
+        out["warnings"].append("No parts and quantities found, e.g. '24 end plates'.")
+    return out
