@@ -23,7 +23,7 @@
     </label>
   </div>
   <div class="row3">
-    <label>To plant
+    <label>To plant (set by the job order)
       <select name="to_plant" id="toPlant" required>
         <option value="">Pick a plant</option>
         {% for p in plants %}<option value="{{ p.plant_code }}" {{ 'selected' if form.to_plant==p.plant_code }}>{{ p.plant_code }} {{ p.name }}</option>{% endfor %}
@@ -62,36 +62,47 @@ const JO = {{ jo_info|tojson }};
 const DEPTS = {{ depts|tojson }};
 const jo = document.getElementById('jo'), fromPlant = document.getElementById('fromPlant'),
       fromDept = document.getElementById('fromDept'), toPlant = document.getElementById('toPlant');
-const keepDept = {{ (form.from_dept or '')|tojson }};
+const keepDept = {{ (form.from_dept or defaults.from_dept or '')|tojson }};
+const posted = {{ (form|length > 0)|tojson }};
+if (!fromPlant.value && {{ defaults.from_plant|tojson }}) fromPlant.value = {{ defaults.from_plant|tojson }};
+toPlant.classList.add('locked'); toPlant.tabIndex = -1;
 
 function fillDepts() {
-  const p = fromPlant.value;
   fromDept.innerHTML = '';
-  DEPTS.filter(d => d.plant_code === p).forEach(d => {
+  DEPTS.filter(d => d.plant_code === fromPlant.value).forEach(d => {
     const o = new Option(d.dept_code + ' ' + d.name, d.dept_code);
     if (d.dept_code === keepDept) o.selected = true;
     fromDept.add(o);
   });
   if (!fromDept.options.length) fromDept.add(new Option('Pick a plant first', ''));
 }
-function fillMaterials(userChange) {
+// Fill the parts list from the job order: only parts made at the sending plant,
+// with the quantity the job order still needs. The sender just checks and edits.
+function fillLines(prefill) {
   const items = BOM[jo.value] || [];
-  document.querySelectorAll('select.mat').forEach((s, i) => {
+  const rows = document.querySelectorAll('table.lines tr:not(:first-child)');
+  const mine = items.filter(c => c.supply_plant === fromPlant.value && c.still_needed > 0);
+  rows.forEach((tr, i) => {
+    const s = tr.querySelector('select.mat'), q = tr.querySelector('input.qty');
     const keep = s.dataset.val || s.value;
-    s.innerHTML = '';
-    s.add(new Option('-', ''));
-    items.forEach(c => s.add(new Option(c.material_no + '  ' + c.description + '  (needs ' + c.qty_required + ', made at ' + c.supply_plant + ')', c.material_no)));
-    if (keep && items.some(c => c.material_no === keep)) s.value = keep;
+    s.innerHTML = ''; s.add(new Option('-', ''));
+    items.forEach(c => s.add(new Option(c.material_no + '  ' + c.description + '  (still needed: ' + c.still_needed + ', made at ' + c.supply_plant + ')', c.material_no)));
+    if (prefill) {
+      s.value = mine[i] ? mine[i].material_no : '';
+      q.value = mine[i] ? mine[i].still_needed : '';
+    } else if (keep && items.some(c => c.material_no === keep)) { s.value = keep; }
     s.dataset.val = '';
   });
   const hint = document.getElementById('bomHint');
   if (JO[jo.value]) {
-    hint.textContent = JO[jo.value].description + '. Assembly at plant ' + JO[jo.value].assembly_plant + '.';
-    if (userChange) toPlant.value = JO[jo.value].assembly_plant;
+    toPlant.value = JO[jo.value].assembly_plant;
+    hint.textContent = JO[jo.value].description + '. Parts go to plant ' + JO[jo.value].assembly_plant +
+      (fromPlant.value ? '. Prefilled with what plant ' + fromPlant.value + ' still owes this job order; change the quantities to what is actually on the trolley.' : '. Pick your plant to prefill the parts.');
+    if (prefill && fromPlant.value && !mine.length) hint.textContent += ' Nothing is still owed from this plant.';
   }
 }
-jo.addEventListener('change', () => fillMaterials(true));
-fromPlant.addEventListener('change', fillDepts);
-fillDepts(); fillMaterials(false);
+jo.addEventListener('change', () => fillLines(true));
+fromPlant.addEventListener('change', () => { fillDepts(); fillLines(true); });
+fillDepts(); fillLines(!posted && !!jo.value);
 </script>
 {% endblock %}

@@ -10,6 +10,7 @@
     <p class="muted">Job order <a href="{{ url_for('job_order_detail', jo=t.job_order_no) }}">{{ t.job_order_no }}</a></p>
   </div>
   <div class="hero-actions">
+    <a class="btn" href="{{ url_for('dispute', q=t.transfer_no) }}">Verdict</a>
     <a class="btn" href="{{ url_for('slip', tno=t.transfer_no) }}" target="_blank">Print slip</a>
     {% if t.status == 'IN_TRANSIT' %}<a class="btn primary" href="{{ url_for('receive', tno=t.transfer_no) }}">Receive</a>{% endif %}
   </div>
@@ -48,7 +49,7 @@
       <td>{{ l.line_no }}</td>
       <td><b>{{ l.material_no }}</b><br><span class="muted small">{{ l.description }}</span></td>
       <td class="small">{{ l.batch or '-' }}</td>
-      <td>{{ l.qty_sent|qty }} {{ l.uom }}</td>
+      <td>{% if t.status == 'IN_TRANSIT' %}<span class="muted small" title="Shown once the receiving plant has counted">hidden until counted</span>{% else %}{{ l.qty_sent|qty }} {{ l.uom }}{% endif %}</td>
       <td>{{ l.qty_received|qty if l.qty_received is not none else '-' }}</td>
       <td>{{ l.qty_damaged|qty if l.qty_damaged else '-' }}</td>
       <td>{% if diff is none %}-{% elif diff == 0 %}<span class="tag ok">match</span>{% else %}<span class="tag warn">{{ '%+g'|format(diff) }}</span>{% endif %}</td>

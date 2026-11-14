@@ -2,9 +2,25 @@
 
 A working prototype that tracks semi-finished goods (SFGs) moving between Indus International's three plants, from the moment one plant sends a part to the moment another confirms it arrived. Every step is written to an append-only trail that can't be edited, so when a plant says "we never got it", there is a record to check.
 
-**Live demo:** https://mastaadmi.pythonanywhere.com (sample data for 3 plants and 4 job orders; anything you send or receive there is saved)
+**Live demo:** https://mastaadmi.pythonanywhere.com (sample data: 3 plants, 4 open job orders and two weeks of past transfers; anything you send or receive there is saved)
 
 **Design note (1 page):** [NOTE.md](NOTE.md)
+
+## The process it supports
+
+```mermaid
+flowchart LR
+    subgraph Before
+      A1[Parts leave Headers or Sheet Metal] --> A2[Nothing written down] --> A3[Arrive, nobody counts] --> A4[Missing? Settled by memory and phone calls]
+    end
+    subgraph After
+      B1[Send: pick job order and plant, parts prefilled, print slip] --> B2[Slip with QR travels with the parts] --> B3[Receive: scan, blind count, confirm]
+      B3 --> B4[Differences and overdue flagged for both plants]
+      B4 --> B5[Settle a dispute: verdict from the append-only trail]
+    end
+```
+
+The app's *The process* page has the same before and after, the pilot plan (one route, baseline first) and where AI fits and where it doesn't.
 
 ## Run it locally (one command)
 
@@ -17,18 +33,18 @@ Needs Python 3.10 or newer. On macOS or Linux:
 Then open http://127.0.0.1:5050. The first run creates a virtual environment and installs Flask (about 20 seconds). Data is saved in `instance/sfg_tracker.db` and survives restarts.
 
 - `./run.sh reset` rebuilds the database with fresh demo data
-- `./run.sh test` runs the 15 automated checks
+- `./run.sh test` runs the 17 automated checks
 
 On Windows: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python app.py`.
 
-## Two-minute demo
+## Three-minute demo
 
-1. **Dashboard.** The demo data has 5 transfers: one clean, one with a short and damaged receipt, one sent 9 hours ago and never received (overdue and flagged), and two in transit now.
-2. **Send parts.** Pick job order `JO-2026-1042`, from plant `1200`, add `SFG-SM-2001` x 24, your name, and click *Log as sent*. You get a transfer number and a printable slip with a QR code that opens the receive screen.
-3. **Receive parts.** Open the transfer and click *Receive*. The sent quantity is hidden on purpose (a blind count). Enter 22. The tracker records a 2-piece shortage as a discrepancy, and both plants see it on the dashboard until someone records how it was settled.
-4. **Trail.** Every action is there in order, with who, when and which plant. The page re-checks the hash chain each time it loads.
-5. **Job orders.** For each job order, see how many of each SFG are required, in transit, received good at the assembly plant and still missing. This is what the job order system would get back.
-6. **Integration.** How the tracker talks to the job order system and to SAP, with the endpoints and field mapping.
+1. **Settle a dispute.** On the dashboard, type `TRF-2026-00025` (sent 9 hours ago, never received, flagged by Plant 3). The verdict says who sent what, that nobody has signed for it, who last had the parts, and whether the record is intact.
+2. **Send.** Pick job order `JO-2026-1041` and plant `1200`. The parts the plant still owes are prefilled (here, the 2 dented end plates and 2 short side channels from an earlier trip); the destination is set by the job order. Click *Log as sent* and print the slip: it has a QR code and no quantities.
+3. **Receive.** Open the transfer and click *Receive*. The sent quantity is hidden (a blind count). Enter one less than you sent: the shortage becomes a discrepancy both plants see until someone records how it was settled.
+4. **Insights.** Two weeks of history: % received within 4 hours, median transit time per route, discrepancy rate per department, time to settle, and plain flags such as "Route 1200 to 1300: 3 of 11 transfers arrived with a discrepancy". A blank-input calculator turns your own numbers into a yearly figure.
+5. **Trail.** Every action in order. The page re-checks the hash chain and replays the log against the working tables on every load.
+6. **Job orders and SAP.** Per job order: required, in transit, received and still missing (what the job order system gets back). *SAP and job orders* shows the endpoints, the 303/305 mapping and the goods-movement export.
 
 ## What it handles
 
@@ -38,7 +54,9 @@ On Windows: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.t
 | Plant receives parts | Blind count per line; only the destination plant can receive; a transfer can only be received once |
 | Fewer, more or damaged parts arrive | Discrepancy raised automatically (short, excess, damaged) and stays open until settled with a note |
 | Parts never arrive | In transit longer than 4 hours (set by `TRANSIT_SLA_HOURS`) shows as overdue; either plant can flag "not received"; a late receipt closes the flag |
-| Someone edits the record | The database blocks edits and deletes on the trail, and a hash chain shows if a row was changed outside the app |
+| Someone edits the record | The database blocks edits and deletes on the trail; a hash chain and a replay of the trail against the working tables flag changes made outside the app |
+| Two plants disagree | *Settle a dispute* gives a plain verdict for any transfer, from the trail |
+| Is it getting better? | *Insights* tracks receipts on time, transit time, discrepancy rate and time to settle |
 
 ## How it's built
 
@@ -78,7 +96,9 @@ flowchart LR
 | `POST /api/transfers/<no>/receive` | Confirm receipt; `409` if already received or wrong plant |
 | `GET /api/job-orders/<no>/sfg-status` | Required, sent, in transit, received good and missing per SFG |
 | `GET /api/events?after_id=N` | The trail as a feed; a consumer keeps the last id it read |
-| `GET /api/trail/verify` | Re-checks the hash chain |
+| `GET /api/trail/verify` | Re-checks the hash chain and replays the trail against the tables |
+| `GET /api/transfers/<no>/verdict` | The *Settle a dispute* verdict for one transfer |
+| `GET /api/insights` | The metrics behind the Insights page |
 | `GET /export/sap-goods-movements.csv` | Every send (303) and receipt (305) as an SAP-style goods movement line |
 
 Example:
@@ -109,7 +129,7 @@ tracker/schema.sql     data model
 tracker/seed.py        builds the demo database
 data/                  dummy job order file and master data
 templates/, static/    UI
-tests/test_flow.py     15 end-to-end checks
+tests/test_flow.py     17 end-to-end checks
 run.sh                 one-command start
 render.yaml            config for an alternative host (Render); the live demo runs on PythonAnywhere
 ```

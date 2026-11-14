@@ -11,13 +11,16 @@
   <div class="wrap top-inner">
     <a class="brand" href="{{ url_for('dashboard') }}"><span class="dot"></span>SFG Transfer Tracker</a>
     <nav>
+      <a href="{{ url_for('send') }}" class="{{ 'on' if request.endpoint=='send' }}">Send</a>
+      <a href="{{ url_for('receive_queue') }}" class="{{ 'on' if request.endpoint in ('receive_queue','receive') }}">Receive</a>
+      <a href="{{ url_for('dispute') }}" class="{{ 'on' if request.endpoint=='dispute' }}">Settle a dispute</a>
       <a href="{{ url_for('dashboard') }}" class="{{ 'on' if request.endpoint=='dashboard' }}">Dashboard</a>
-      <a href="{{ url_for('send') }}" class="{{ 'on' if request.endpoint=='send' }}">Send parts</a>
-      <a href="{{ url_for('receive_queue') }}" class="{{ 'on' if request.endpoint in ('receive_queue','receive') }}">Receive parts</a>
       <a href="{{ url_for('transfers') }}" class="{{ 'on' if request.endpoint in ('transfers','transfer_detail') }}">Transfers</a>
       <a href="{{ url_for('job_orders') }}" class="{{ 'on' if request.endpoint in ('job_orders','job_order_detail') }}">Job orders</a>
+      <a href="{{ url_for('insights_page') }}" class="{{ 'on' if request.endpoint=='insights_page' }}">Insights</a>
+      <a href="{{ url_for('process') }}" class="{{ 'on' if request.endpoint=='process' }}">The process</a>
       <a href="{{ url_for('trail') }}" class="{{ 'on' if request.endpoint=='trail' }}">Trail</a>
-      <a href="{{ url_for('integration') }}" class="{{ 'on' if request.endpoint=='integration' }}">Integration</a>
+      <a href="{{ url_for('integration') }}" class="{{ 'on' if request.endpoint=='integration' }}">SAP and job orders</a>
     </nav>
   </div>
 </header>

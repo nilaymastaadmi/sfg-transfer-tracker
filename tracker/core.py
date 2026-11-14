@@ -163,15 +163,16 @@ def load_master_data(con, path):
                          m.get("material_type", "SFG"), m.get("dept_code")))
 
 
-def sync_job_orders(con, path, actor="system", now=None):
+def sync_job_orders(con, path, actor="system", now=None, data=None):
     """Import (or refresh) job orders from the job order system's export file.
 
     This is the inbound half of the job order link. The file format is the
     contract: swap the file for an API call later and nothing else changes.
     """
     ts = to_iso(now or utcnow())
-    with open(path) as f:
-        data = json.load(f)
+    if data is None:
+        with open(path) as f:
+            data = json.load(f)
     orders = data["job_orders"]
     with tx(con):
         for jo in orders:
@@ -259,6 +260,27 @@ def _s(v):
     return v.strip() if isinstance(v, str) else ""
 
 
+def _covered(con, job_order_no, material_no, assembly_plant):
+    """Pieces already good at the assembly plant or on the way there. A short or
+    damaged receipt frees up room, so the missing pieces can be re-sent."""
+    return con.execute(
+        "SELECT COALESCE(SUM(CASE WHEN t.status = 'IN_TRANSIT' THEN l.qty_sent"
+        " ELSE l.qty_received - COALESCE(l.qty_damaged, 0) END), 0)"
+        " FROM transfer_lines l JOIN transfers t USING (transfer_no)"
+        " WHERE t.job_order_no = ? AND l.material_no = ? AND t.to_plant = ?",
+        (job_order_no, material_no, assembly_plant)).fetchone()[0]
+
+
+def still_needed(con, job_order_no):
+    """{material_no: pieces that can still be sent} for one job order."""
+    jo = con.execute("SELECT * FROM job_orders WHERE job_order_no = ?", (job_order_no,)).fetchone()
+    if not jo:
+        return {}
+    return {c["material_no"]: max(c["qty_required"] - _covered(con, job_order_no, c["material_no"],
+                                                               jo["assembly_plant"]), 0)
+            for c in con.execute("SELECT * FROM job_order_components WHERE job_order_no = ?", (job_order_no,))}
+
+
 def _validate_send(con, job_order_no, from_plant, from_dept, to_plant, lines, sent_by):
     job_order_no, from_plant, from_dept, to_plant = map(_s, (job_order_no, from_plant, from_dept, to_plant))
     sent_by = _s(sent_by)
@@ -310,14 +332,7 @@ def _validate_send(con, job_order_no, from_plant, from_dept, to_plant, lines, se
         if from_plant != comp["supply_plant"]:
             raise TrackerError(f"Line {i}: for {job_order_no}, {mat} comes from plant {comp['supply_plant']}, "
                                f"not {from_plant}.")
-        # Allowed = required minus what is already good at the assembly plant or on the way.
-        # A short or damaged receipt frees up room, so the missing pieces can be re-sent.
-        done = con.execute(
-            "SELECT COALESCE(SUM(CASE WHEN t.status = 'IN_TRANSIT' THEN l.qty_sent"
-            " ELSE l.qty_received - COALESCE(l.qty_damaged, 0) END), 0)"
-            " FROM transfer_lines l JOIN transfers t USING (transfer_no)"
-            " WHERE t.job_order_no = ? AND l.material_no = ? AND t.to_plant = ?",
-            (job_order_no, mat, jo["assembly_plant"])).fetchone()[0]
+        done = _covered(con, job_order_no, mat, jo["assembly_plant"])
         room = comp["qty_required"] - done
         if qty > room:
             raise TrackerError(f"Line {i}: {job_order_no} needs {comp['qty_required']:g} x {mat}; "
@@ -546,3 +561,154 @@ def sap_goods_movements(con):
                 "POSTED_IN_SAP": "N",
             })
     return rows
+
+
+# --- metrics: is the problem actually shrinking? ---------------------------
+
+def _median(xs):
+    xs = sorted(xs)
+    if not xs:
+        return None
+    m = len(xs) // 2
+    return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
+
+
+def insights(con, sla_hours, now=None):
+    """Numbers a plant manager would track: transit time per route, receipts
+    on time, discrepancy rate per sending department, how fast disputes are
+    settled, plus plain-language flags generated from the same numbers."""
+    now = now or utcnow()
+    transfers = con.execute("SELECT * FROM transfers ORDER BY sent_at").fetchall()
+    lines = con.execute("SELECT l.*, t.from_dept, t.from_plant, t.to_plant FROM transfer_lines l"
+                        " JOIN transfers t USING (transfer_no)").fetchall()
+    disc = con.execute("SELECT d.*, t.from_dept, t.from_plant, t.to_plant, l.material_no FROM discrepancies d"
+                       " JOIN transfers t USING (transfer_no) LEFT JOIN transfer_lines l"
+                       " ON l.transfer_no = d.transfer_no AND l.line_no = d.line_no").fetchall()
+    received = [t for t in transfers if t["received_at"]]
+    hours = lambda a, b: (from_iso(b) - from_iso(a)).total_seconds() / 3600  # noqa: E731
+
+    routes = {}
+    for t in transfers:
+        r = routes.setdefault((t["from_plant"], t["to_plant"]), {"n": 0, "times": [], "late": 0, "with_disc": 0})
+        r["n"] += 1
+        if t["received_at"]:
+            h = hours(t["sent_at"], t["received_at"])
+            r["times"].append(h)
+            r["late"] += h > sla_hours
+        if t["status"] == "RECEIVED_WITH_DISCREPANCY":
+            r["with_disc"] += 1
+    route_rows = [{"route": f"{a} → {b}", "from_plant": a, "to_plant": b, "transfers": r["n"],
+                   "median_hours": _median(r["times"]), "received": len(r["times"]), "late": r["late"],
+                   "with_discrepancy": r["with_disc"]} for (a, b), r in sorted(routes.items())]
+
+    depts = {}
+    for ln in lines:
+        d = depts.setdefault(ln["from_dept"], {"lines": 0, "pcs": 0, "short": 0, "damaged": 0, "excess": 0})
+        d["lines"] += 1
+        d["pcs"] += ln["qty_sent"]
+    for x in disc:
+        if x["kind"] in ("SHORT", "DAMAGED", "EXCESS") and x["from_dept"] in depts:
+            depts[x["from_dept"]][x["kind"].lower()] += x["qty"] or 0
+    dept_rows = []
+    for k, d in sorted(depts.items()):
+        bad_lines = len({(x["transfer_no"], x["line_no"]) for x in disc
+                         if x["from_dept"] == k and x["kind"] in ("SHORT", "DAMAGED", "EXCESS")})
+        dept_rows.append(dict(d, dept=k, bad_lines=bad_lines,
+                              rate=(bad_lines / d["lines"]) if d["lines"] else 0))
+
+    settled = [hours(x["raised_at"], x["resolved_at"]) for x in disc if x["resolved_at"]]
+    open_disc = [x for x in disc if x["status"] == "OPEN"]
+    on_time = sum(1 for t in received if hours(t["sent_at"], t["received_at"]) <= sla_hours)
+
+    flags = []
+    for r in route_rows:
+        if r["with_discrepancy"] >= 2 and r["transfers"] and r["with_discrepancy"] / r["transfers"] >= 0.2:
+            flags.append(f"Route {r['route']}: {r['with_discrepancy']} of {r['transfers']} transfers arrived with a "
+                         f"discrepancy. Worth a count check at dispatch on this route.")
+        if r["late"] >= 2:
+            flags.append(f"Route {r['route']}: {r['late']} of {r['received']} receipts took longer than "
+                         f"{sla_hours:g} hours (median {r['median_hours']:.1f} h).")
+    by_mat = {}
+    for x in disc:
+        if x["kind"] == "SHORT" and x["material_no"]:
+            by_mat[x["material_no"]] = by_mat.get(x["material_no"], 0) + (x["qty"] or 0)
+    for mat, q in sorted(by_mat.items(), key=lambda kv: -kv[1])[:1]:
+        if q >= 3:
+            flags.append(f"{mat} is the most frequently short part: {q:g} pieces short in total. "
+                         f"Check how it is counted and packed.")
+    for t in overdue_transfers(con, sla_hours, now):
+        flags.append(f"{t['transfer_no']} has been in transit {hours(t['sent_at'], to_iso(now)):.0f} hours "
+                     f"({t['from_plant']} → {t['to_plant']}). Chase it today.")
+
+    return {
+        "transfers": len(transfers), "received": len(received),
+        "on_time": on_time, "on_time_pct": (on_time / len(received) * 100) if received else None,
+        "median_transit_h": _median([hours(t["sent_at"], t["received_at"]) for t in received]),
+        "pcs_sent": sum(ln["qty_sent"] for ln in lines),
+        "pcs_short": sum((x["qty"] or 0) for x in disc if x["kind"] == "SHORT"),
+        "pcs_damaged": sum((x["qty"] or 0) for x in disc if x["kind"] == "DAMAGED"),
+        "disputes": len(disc), "disputes_open": len(open_disc),
+        "median_settle_h": _median(settled),
+        "routes": route_rows, "depts": dept_rows, "flags": flags,
+    }
+
+
+# --- settle a dispute ------------------------------------------------------
+
+def dispute_verdict(con, transfer_no, sla_hours, now=None):
+    """Answer "who is right?" for one transfer in plain words, using only the
+    trail: what was sent, what was confirmed, who last held the parts, what is
+    still open, and whether the record has been edited."""
+    now = now or utcnow()
+    t = con.execute("SELECT * FROM transfers WHERE transfer_no = ?", (transfer_no,)).fetchone()
+    if not t:
+        return None
+    lines = con.execute("SELECT * FROM transfer_lines WHERE transfer_no = ? ORDER BY line_no",
+                        (transfer_no,)).fetchall()
+    disc = con.execute("SELECT * FROM discrepancies WHERE transfer_no = ? ORDER BY id", (transfer_no,)).fetchall()
+    events = con.execute("SELECT id FROM events WHERE transfer_no = ?", (transfer_no,)).fetchall()
+    chain_ok, _, bad = verify_trail(con)
+    mismatches = [p for p in reconcile(con) if f"'{transfer_no}'" in p]
+    intact = chain_ok and not mismatches
+    pcs = sum(ln["qty_sent"] for ln in lines)
+    sent_txt = (f"{t['sent_by']} logged {pcs:g} pieces on {len(lines)} line(s) leaving plant {t['from_plant']} "
+                f"({t['from_dept']}) on {fmt_local(t['sent_at'])}"
+                + (f", on {t['vehicle_ref']}" if t["vehicle_ref"] else "") + ".")
+    h = (now - from_iso(t["sent_at"])).total_seconds() / 3600
+    open_d = [d for d in disc if d["status"] == "OPEN"]
+
+    if t["status"] == "IN_TRANSIT":
+        got_txt = f"No receipt has been confirmed at plant {t['to_plant']}. The parts have been in transit {h:.1f} hours."
+        if h > sla_hours:
+            got_txt += f" That is past the {sla_hours:g}-hour limit."
+        custody = (f"Last confirmed hand-off: plant {t['from_plant']} to "
+                   f"{t['vehicle_ref'] or 'the transport'} at {fmt_local(t['sent_at'])}. "
+                   f"Nobody at plant {t['to_plant']} has signed for them yet.")
+        verdict = (f"The send is on record, so plant {t['from_plant']} did send the parts. "
+                   f"Plant {t['to_plant']} is also right that it hasn't received them: the gap is between the "
+                   f"two plants. Check the {'vehicle and ' if t['vehicle_ref'] else ''}the receiving dock first.")
+        level = "alert" if h > sla_hours else "warn"
+    else:
+        rec = sum(ln["qty_received"] or 0 for ln in lines)
+        dmg = sum(ln["qty_damaged"] or 0 for ln in lines)
+        took = (from_iso(t["received_at"]) - from_iso(t["sent_at"])).total_seconds() / 3600
+        got_txt = (f"{t['received_by']} counted {rec:g} of {pcs:g} pieces at plant {t['to_plant']} on "
+                   f"{fmt_local(t['received_at'])}, {took:.1f} hours after the send"
+                   + (f"; {dmg:g} were damaged" if dmg else "") + ".")
+        custody = f"Plant {t['to_plant']} signed for the parts, so they are now its responsibility."
+        if not disc or all(d["kind"] == "NOT_RECEIVED" for d in disc):
+            verdict = "Both sides agree: everything sent was received. There is nothing to dispute."
+            level = "ok"
+        elif open_d:
+            short = [d for d in open_d if d["kind"] == "SHORT"]
+            verdict = (f"The parts arrived but not all of them: {len(open_d)} discrepancy(ies) still open"
+                       + (f", including {sum(d['qty'] or 0 for d in short):g} piece(s) short" if short else "")
+                       + f". The count happened at plant {t['to_plant']} and the sent quantity was hidden from the "
+                         f"counter, so the shortfall happened before the receipt: at dispatch or in transit.")
+            level = "warn"
+        else:
+            verdict = "There were differences, and every one has been settled. See how below."
+            level = "ok"
+    return {"t": t, "lines": lines, "disc": disc, "events": len(events), "intact": intact,
+            "chain_ok": chain_ok, "mismatches": mismatches, "sent_txt": sent_txt, "got_txt": got_txt,
+            "custody": custody, "verdict": verdict, "level": level}

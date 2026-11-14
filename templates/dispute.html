@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Settle a dispute | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>Settle a dispute</h1>
+<p class="muted">"We sent it." "We never got it." Enter the transfer number from the slip, or a job order, and get the answer from the record.</p>
+<form method="get" class="filters">
+  <label>Transfer or job order number
+    <input name="q" value="{{ q }}" placeholder="e.g. TRF-2026-00002 or JO-2026-1042" style="min-width:280px" autofocus>
+  </label>
+  <button class="btn primary">Check the record</button>
+</form>
+
+{% if q and not v and not matches %}<div class="flash warn">Nothing found for "{{ q }}".</div>{% endif %}
+
+{% if matches %}
+<section class="card">
+  <h2>Transfers for {{ q }}</h2>
+  <table>
+    <tr><th>Transfer</th><th>Route</th><th>Sent</th><th>Status</th><th></th></tr>
+    {% for t in matches %}
+    <tr><td>{{ t.transfer_no }}</td><td>{{ t.from_plant }} &rarr; {{ t.to_plant }}</td><td class="small">{{ t.sent_at|local }}</td>
+      <td>{{ STATUS_LABEL.get(t.status, t.status) }}</td>
+      <td><a class="btn small" href="{{ url_for('dispute', q=t.transfer_no) }}">Check</a></td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+
+{% if v %}
+<section class="card verdict {{ v.level }}">
+  <div class="label">Verdict for <a href="{{ url_for('transfer_detail', tno=v.t.transfer_no) }}">{{ v.t.transfer_no }}</a> &middot; job order {{ v.t.job_order_no }}</div>
+  <p class="big">{{ v.verdict }}</p>
+  <ol class="facts">
+    <li><b>Sent.</b> {{ v.sent_txt }}</li>
+    <li><b>Received.</b> {{ v.got_txt }}</li>
+    <li><b>Who has the parts.</b> {{ v.custody }}</li>
+    {% for d in v.disc %}
+    <li><b>{{ d.kind|replace('_',' ')|title }}{% if d.qty %}, {{ d.qty|qty }} pcs{% endif %}.</b>
+      Raised by {{ d.raised_by }} on {{ d.raised_at|local }}.
+      {% if d.status == 'RESOLVED' %}Settled by {{ d.resolved_by }}: "{{ d.resolution }}"{% else %}<b>Still open.</b>{% endif %}</li>
+    {% endfor %}
+    <li><b>Can this record be trusted?</b>
+      {% if v.intact %}Yes. The {{ v.events }} entries for this transfer are in the append-only log, the hash chain checks out and the working tables match the log.
+      {% else %}<span class="tag alert">Record altered</span> The log or the tables were changed outside the app{% if v.mismatches %}: {{ v.mismatches|join('; ') }}{% endif %}. Treat this record as disputed.{% endif %}</li>
+  </ol>
+</section>
+{% endif %}
+{% endblock %}

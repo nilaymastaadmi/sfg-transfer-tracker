@@ -116,7 +116,7 @@ def dashboard():
     recent = [dict(r, data=json.loads(r["payload"])) for r in
               con.execute("SELECT * FROM events ORDER BY id DESC LIMIT 8")]
     jos = [core.job_order_status(con, r[0]) for r in
-           con.execute("SELECT job_order_no FROM job_orders ORDER BY due_date")]
+           con.execute("SELECT job_order_no FROM job_orders WHERE status <> 'COMPLETED' ORDER BY due_date")]
     return render_template("dashboard.html", counts=counts, queue=queue, overdue=overdue,
                            flagged=flagged, open_disc=open_disc, recent=recent, jos=jos)
 
@@ -138,18 +138,27 @@ def send():
             flash(str(e), "error")
         else:
             flash(f"{tno} logged as sent. Print the slip and send it with the parts.", "ok")
-            return remember_name(redirect(url_for("transfer_detail", tno=tno)), f.get("sent_by"))
+            resp = remember_name(redirect(url_for("transfer_detail", tno=tno)), f.get("sent_by"))
+            for k in ("from_plant", "from_dept"):
+                resp.set_cookie(f"sfg_{k}", f.get(k, ""), max_age=60 * 60 * 24 * 30, samesite="Lax")
+            return resp
     jos = con.execute("SELECT * FROM job_orders WHERE status IN ('RELEASED','IN_PROGRESS')"
                       " ORDER BY job_order_no").fetchall()
     bom = {}
     for r in con.execute("SELECT c.job_order_no, c.material_no, c.qty_required, c.supply_plant,"
                          " m.description, m.uom FROM job_order_components c JOIN materials m USING (material_no)"):
         bom.setdefault(r["job_order_no"], []).append(dict(r))
+    for jo_no, comps in bom.items():
+        need = core.still_needed(con, jo_no)
+        for c in comps:
+            c["still_needed"] = need.get(c["material_no"], 0)
     jo_info = {j["job_order_no"]: {"assembly_plant": j["assembly_plant"],
                                    "description": j["description"]} for j in jos}
     depts = [dict(d) for d in con.execute("SELECT * FROM departments ORDER BY plant_code, dept_code")]
+    defaults = {"from_plant": request.cookies.get("sfg_from_plant", ""),
+                "from_dept": request.cookies.get("sfg_from_dept", "")}
     return render_template("send.html", jos=jos, plants=plants(), depts=depts, bom=bom,
-                           jo_info=jo_info, form=request.form)
+                           jo_info=jo_info, form=request.form, defaults=defaults)
 
 
 @app.route("/receive")
@@ -263,9 +272,10 @@ def resolve(did):
 def job_orders():
     con = db()
     jos = [core.job_order_status(con, r[0]) for r in
-           con.execute("SELECT job_order_no FROM job_orders ORDER BY due_date")]
+           con.execute("SELECT job_order_no FROM job_orders WHERE status <> 'COMPLETED' ORDER BY due_date")]
+    done = con.execute("SELECT * FROM job_orders WHERE status = 'COMPLETED' ORDER BY due_date DESC").fetchall()
     synced = con.execute("SELECT MAX(synced_at) FROM job_orders").fetchone()[0]
-    return render_template("job_orders.html", jos=jos, synced=synced)
+    return render_template("job_orders.html", jos=jos, done=done, synced=synced)
 
 
 @app.route("/job-orders/<jo>")
@@ -294,6 +304,43 @@ def trail():
     rows = [dict(r, data=json.loads(r["payload"])) for r in
             con.execute("SELECT * FROM events ORDER BY id DESC")]
     return render_template("trail.html", rows=rows, ok=ok, n=n, bad=bad, problems=problems)
+
+
+@app.route("/dispute")
+def dispute():
+    con = db()
+    q = request.args.get("q", "").strip().upper()
+    v, matches = None, []
+    if q:
+        v = core.dispute_verdict(con, q, SLA_HOURS)
+        if not v:
+            matches = con.execute("SELECT * FROM transfers WHERE job_order_no = ? ORDER BY sent_at DESC",
+                                  (q,)).fetchall()
+    return render_template("dispute.html", q=q, v=v, matches=matches)
+
+
+@app.get("/api/transfers/<tno>/verdict")
+def api_verdict(tno):
+    v = core.dispute_verdict(db(), tno, SLA_HOURS)
+    if not v:
+        return api_error("not found", 404)
+    return jsonify({k: v[k] for k in ("verdict", "sent_txt", "got_txt", "custody", "intact", "level")}
+                   | {"transfer_no": tno, "open_discrepancies": [dict(d) for d in v["disc"] if d["status"] == "OPEN"]})
+
+
+@app.route("/insights")
+def insights_page():
+    return render_template("insights.html", i=core.insights(db(), SLA_HOURS))
+
+
+@app.get("/api/insights")
+def api_insights():
+    return jsonify(core.insights(db(), SLA_HOURS))
+
+
+@app.route("/process")
+def process():
+    return render_template("process.html")
 
 
 @app.route("/integration")

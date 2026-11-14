@@ -16,4 +16,14 @@
   {% include "_jo_table.html" %}
 </section>
 {% endfor %}
+{% if done %}
+<section class="card">
+  <h2>Completed job orders ({{ done|length }})</h2>
+  <p class="small muted">Past builds. Their transfers feed the <a href="{{ url_for('insights_page') }}">Insights</a> page.</p>
+  <table class="small">
+    <tr><th>Job order</th><th>Built</th><th>Assembly at</th><th>Due</th></tr>
+    {% for j in done %}<tr><td><a href="{{ url_for('job_order_detail', jo=j.job_order_no) }}">{{ j.job_order_no }}</a></td><td>{{ j.qty|qty }} x {{ j.description }}</td><td>{{ j.assembly_plant }}</td><td>{{ j.due_date }}</td></tr>{% endfor %}
+  </table>
+</section>
+{% endif %}
 {% endblock %}

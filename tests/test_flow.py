@@ -136,7 +136,9 @@ def test_web_send_receive_and_api(tmp_path, monkeypatch):
     client = appmod.app.test_client()
     for path in ["/", "/send", "/receive", "/transfers", "/job-orders", "/trail", "/integration",
                  "/job-orders/JO-2026-1041", "/transfers/TRF-2026-00001", "/transfers/TRF-2026-00001/slip",
-                 "/export/sap-goods-movements.csv", "/api/events", "/api/trail/verify"]:
+                 "/export/sap-goods-movements.csv", "/api/events", "/api/trail/verify",
+                 "/insights", "/api/insights", "/process", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
+                 "/api/transfers/TRF-2026-00001/verdict"]:
         assert client.get(path).status_code == 200, path
     r = client.post("/send", data={"job_order_no": "JO-2026-1043", "from_plant": "1200", "from_dept": "SM",
                                    "to_plant": "1300", "sent_by": "Web", "material_1": "SFG-SM-2003",
@@ -204,3 +206,23 @@ def test_sap_receipt_is_capped_at_sent_quantity(con):
     core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: {"qty_received": 12}})
     r305 = [r for r in core.sap_goods_movements(con) if r["MOVE_TYPE"] == "305"][0]
     assert r305["ENTRY_QNT"] == 10 and "2 excess not posted" in r305["ITEM_TEXT"]
+
+
+def test_dispute_verdicts(con):
+    tno = send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 20}], vehicle_ref="Trolley T-02")
+    v = core.dispute_verdict(con, tno, 4)
+    assert v["level"] in ("warn", "alert") and "hasn't received" in v["verdict"] and v["intact"]
+    core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: {"qty_received": 18}})
+    v = core.dispute_verdict(con, tno, 4)
+    assert "2 piece(s) short" in v["verdict"] and v["level"] == "warn"
+    con.execute("UPDATE transfer_lines SET qty_received = 20")
+    v = core.dispute_verdict(con, tno, 4)
+    assert not v["intact"]
+    assert core.dispute_verdict(con, "TRF-0000", 4) is None
+
+
+def test_insights_on_demo_data(tmp_path):
+    c = seed.build(str(tmp_path / "d.db"), demo=True)
+    i = core.insights(c, 4)
+    assert i["transfers"] >= 20 and i["flags"] and core.reconcile(c) == [] and core.verify_trail(c)[0]
+    c.close()

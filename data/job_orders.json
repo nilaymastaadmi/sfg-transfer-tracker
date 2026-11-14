@@ -1,8 +1,372 @@
 {
-  "_comment": "DUMMY export from Indus's existing job order system (the system that tracks the parent build). The tracker reads this file; it never writes to it. In production this file would be replaced by an API call or an SAP production order feed with the same fields.",
+  "_comment": "DUMMY export from Indus's existing job order system (the system that tracks the parent build). The tracker reads this file; it never writes to it. In production this file would be replaced by an API call or an SAP production order feed with the same fields. Job orders marked COMPLETED are past builds; the tracker keeps their transfer history for the metrics.",
   "source_system": "JOB-ORDER-SYSTEM (dummy)",
   "exported_at": "2026-11-14T08:00:00Z",
   "job_orders": [
+    {
+      "job_order_no": "JO-2026-1029",
+      "parent_material": "FG-EVAP-4R36",
+      "description": "Evaporator coil, 4 row x 36 in, Cu/Al",
+      "qty": 8,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-03",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1001",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1002",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1030",
+      "parent_material": "FG-COND-3R48",
+      "description": "Condenser coil, 3 row x 48 in, Cu/Al",
+      "qty": 8,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-04",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1003",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1004",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 8,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1031",
+      "parent_material": "FG-HPC-2R30",
+      "description": "Heat pump coil with brazed casing, 2 row x 30 in",
+      "qty": 8,
+      "uom": "EA",
+      "assembly_plant": "1100",
+      "due_date": "2026-11-05",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 8,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1032",
+      "parent_material": "FG-EVAP-4R36",
+      "description": "Evaporator coil, 4 row x 36 in, Cu/Al",
+      "qty": 20,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-06",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1001",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1002",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1033",
+      "parent_material": "FG-COND-3R48",
+      "description": "Condenser coil, 3 row x 48 in, Cu/Al",
+      "qty": 16,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-07",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1003",
+          "qty_required": 16,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1004",
+          "qty_required": 16,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 32,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1034",
+      "parent_material": "FG-HPC-2R30",
+      "description": "Heat pump coil with brazed casing, 2 row x 30 in",
+      "qty": 10,
+      "uom": "EA",
+      "assembly_plant": "1100",
+      "due_date": "2026-11-08",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 20,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 20,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 10,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1035",
+      "parent_material": "FG-EVAP-4R36",
+      "description": "Evaporator coil, 4 row x 36 in, Cu/Al",
+      "qty": 8,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-09",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1001",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1002",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1036",
+      "parent_material": "FG-COND-3R48",
+      "description": "Condenser coil, 3 row x 48 in, Cu/Al",
+      "qty": 20,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-10",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1003",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1004",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 20,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1037",
+      "parent_material": "FG-HPC-2R30",
+      "description": "Heat pump coil with brazed casing, 2 row x 30 in",
+      "qty": 16,
+      "uom": "EA",
+      "assembly_plant": "1100",
+      "due_date": "2026-11-11",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 32,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 32,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1038",
+      "parent_material": "FG-EVAP-4R36",
+      "description": "Evaporator coil, 4 row x 36 in, Cu/Al",
+      "qty": 20,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-12",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1001",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1002",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1039",
+      "parent_material": "FG-COND-3R48",
+      "description": "Condenser coil, 3 row x 48 in, Cu/Al",
+      "qty": 8,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-13",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-HDR-1003",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1004",
+          "qty_required": 8,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 16,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 8,
+          "supply_plant": "1200"
+        }
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1040",
+      "parent_material": "FG-HPC-2R30",
+      "description": "Heat pump coil with brazed casing, 2 row x 30 in",
+      "qty": 20,
+      "uom": "EA",
+      "assembly_plant": "1100",
+      "due_date": "2026-11-14",
+      "status": "COMPLETED",
+      "components": [
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 20,
+          "supply_plant": "1200"
+        }
+      ]
+    },
     {
       "job_order_no": "JO-2026-1041",
       "parent_material": "FG-EVAP-4R36",
@@ -13,10 +377,26 @@
       "due_date": "2026-11-18",
       "status": "RELEASED",
       "components": [
-        {"material_no": "SFG-HDR-1001", "qty_required": 20, "supply_plant": "1100"},
-        {"material_no": "SFG-HDR-1002", "qty_required": 20, "supply_plant": "1100"},
-        {"material_no": "SFG-SM-2001", "qty_required": 40, "supply_plant": "1200"},
-        {"material_no": "SFG-SM-2002", "qty_required": 40, "supply_plant": "1200"}
+        {
+          "material_no": "SFG-HDR-1001",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1002",
+          "qty_required": 20,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 40,
+          "supply_plant": "1200"
+        }
       ]
     },
     {
@@ -29,10 +409,26 @@
       "due_date": "2026-11-20",
       "status": "RELEASED",
       "components": [
-        {"material_no": "SFG-HDR-1003", "qty_required": 12, "supply_plant": "1100"},
-        {"material_no": "SFG-HDR-1004", "qty_required": 12, "supply_plant": "1100"},
-        {"material_no": "SFG-SM-2001", "qty_required": 24, "supply_plant": "1200"},
-        {"material_no": "SFG-SM-2003", "qty_required": 12, "supply_plant": "1200"}
+        {
+          "material_no": "SFG-HDR-1003",
+          "qty_required": 12,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1004",
+          "qty_required": 12,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 24,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 12,
+          "supply_plant": "1200"
+        }
       ]
     },
     {
@@ -45,11 +441,31 @@
       "due_date": "2026-11-25",
       "status": "RELEASED",
       "components": [
-        {"material_no": "SFG-HDR-1001", "qty_required": 6, "supply_plant": "1100"},
-        {"material_no": "SFG-HDR-1002", "qty_required": 6, "supply_plant": "1100"},
-        {"material_no": "SFG-HDR-1005", "qty_required": 6, "supply_plant": "1100"},
-        {"material_no": "SFG-SM-2001", "qty_required": 12, "supply_plant": "1200"},
-        {"material_no": "SFG-SM-2003", "qty_required": 6, "supply_plant": "1200"}
+        {
+          "material_no": "SFG-HDR-1001",
+          "qty_required": 6,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1002",
+          "qty_required": 6,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-HDR-1005",
+          "qty_required": 6,
+          "supply_plant": "1100"
+        },
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 12,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 6,
+          "supply_plant": "1200"
+        }
       ]
     },
     {
@@ -62,9 +478,21 @@
       "due_date": "2026-11-22",
       "status": "RELEASED",
       "components": [
-        {"material_no": "SFG-SM-2001", "qty_required": 60, "supply_plant": "1200"},
-        {"material_no": "SFG-SM-2002", "qty_required": 60, "supply_plant": "1200"},
-        {"material_no": "SFG-SM-2003", "qty_required": 30, "supply_plant": "1200"}
+        {
+          "material_no": "SFG-SM-2001",
+          "qty_required": 60,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2002",
+          "qty_required": 60,
+          "supply_plant": "1200"
+        },
+        {
+          "material_no": "SFG-SM-2003",
+          "qty_required": 30,
+          "supply_plant": "1200"
+        }
       ]
     }
   ]

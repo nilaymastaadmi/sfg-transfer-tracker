@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}The process | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>The handover process: before and after</h1>
+<p class="muted">The software only works if the process around it does. This is the process the tracker is built around, and how I'd prove it helps.</p>
+
+<div class="grid2">
+<section class="card">
+  <h2>Before (from the brief)</h2>
+  <ol class="steps">
+    <li>Parts leave Headers or Sheet Metal on a trolley or pickup. <b>Nothing is written down</b> in any structured way.</li>
+    <li>They arrive at the other plant. Nobody confirms how many.</li>
+    <li>A part goes missing, or a plant says it never got it.</li>
+    <li>It's settled by <b>conflicting memory</b>, phone calls and searching, while the build waits.</li>
+  </ol>
+  <p class="small muted">Result: no record to check, and lost production time.</p>
+</section>
+<section class="card">
+  <h2>After (this tracker)</h2>
+  <ol class="steps">
+    <li><b>Send</b> (sender, about 30 s): pick the job order and your plant; the parts it still needs are prefilled; adjust to what's on the trolley; print the slip.</li>
+    <li><b>Move</b>: the slip travels with the parts. It has a QR code and no quantities.</li>
+    <li><b>Receive</b> (storekeeper, about 30 s): scan the QR, count each part without seeing the sent number (blind count), confirm.</li>
+    <li><b>Exceptions surface by themselves</b>: any difference becomes a discrepancy for both plants; anything not received in {{ SLA_HOURS|qty }} hours goes red; either plant can flag "not received".</li>
+    <li><b>Settle with the record</b>: <a href="{{ url_for('dispute') }}">Settle a dispute</a> answers who sent what, who confirmed it and who last had the parts, from an append-only trail.</li>
+  </ol>
+</section>
+</div>
+
+<div class="grid2">
+<section class="card">
+  <h2>How I'd roll it out and prove it works</h2>
+  <ol class="steps">
+    <li><b>Week 0, baseline:</b> walk the route with the people who move the parts. Count, by hand, disputes per week and hours lost searching on one route (Sheet Metal to Coil Assembly).</li>
+    <li><b>Weeks 1 and 2, pilot:</b> that one route only, with the two or three people who send and receive. Fix what they complain about first.</li>
+    <li><b>Measure:</b> % of receipts confirmed within {{ SLA_HOURS|qty }} hours, transit time, discrepancy rate per department and time to settle, on the <a href="{{ url_for('insights_page') }}">Insights</a> page, against the week-0 count.</li>
+    <li><b>Then roll out</b> to the other routes, and post to SAP once the counts are trusted.</li>
+  </ol>
+</section>
+<section class="card">
+  <h2>Where AI fits, and where it doesn't</h2>
+  <p><b>Not in the record.</b> The trail settles disputes between plants, so it stays rule-based and exact. A guess has no place in it.</p>
+  <p><b>At the edges, where it saves typing or reading:</b></p>
+  <ul>
+    <li>Turn a photo of today's paper challan, or a WhatsApp message, into a draft send for a person to confirm.</li>
+    <li>A short daily summary for plant heads: what's overdue, which route keeps coming up short, what's still open.</li>
+    <li>Read the free-text notes on discrepancies ("dented corner", "left on rack") to find the repeat causes, the way an 8D would.</li>
+  </ul>
+  <p class="small muted">The <a href="{{ url_for('insights_page') }}">Insights</a> flags already do the rule-based version of the second item. This prototype was built with AI coding tools; I directed the design and checked the result.</p>
+</section>
+</div>
+{% endblock %}

@@ -12,6 +12,11 @@
     <a class="btn" href="{{ url_for('receive_queue') }}">Receive parts</a>
   </div>
 </div>
+<form method="get" action="{{ url_for('dispute') }}" class="card settle">
+  <b>"We sent it." "We never got it."</b>
+  <input name="q" placeholder="Transfer number from the slip, e.g. TRF-2026-00025" class="grow">
+  <button class="btn primary">Settle it</button>
+</form>
 
 <div class="kpis">
   <a class="kpi" href="{{ url_for('transfers', status='IN_TRANSIT') }}"><span class="n">{{ counts.in_transit }}</span><span>in transit</span></a>
