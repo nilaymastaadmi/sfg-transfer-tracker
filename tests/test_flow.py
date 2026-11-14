@@ -137,7 +137,7 @@ def test_web_send_receive_and_api(tmp_path, monkeypatch):
     for path in ["/", "/send", "/receive", "/transfers", "/job-orders", "/trail", "/integration",
                  "/job-orders/JO-2026-1041", "/transfers/TRF-2026-00001", "/transfers/TRF-2026-00001/slip",
                  "/export/sap-goods-movements.csv", "/api/events", "/api/trail/verify",
-                 "/insights", "/api/insights", "/process", "/directory", "/plants/1100", "/plants/1300", "/parts/SFG-SM-2002", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
+                 "/insights", "/api/insights", "/process", "/directory", "/trace", "/trace?q=TRF-2026-00026", "/trace?q=SFG-SM-2002", "/trace?q=JO-2026-1041", "/plants/1100", "/plants/1300", "/parts/SFG-SM-2002", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
                  "/api/transfers/TRF-2026-00001/verdict"]:
         assert client.get(path).status_code == 200, path
     r = client.post("/send", data={"job_order_no": "JO-2026-1043", "from_plant": "1200", "from_dept": "SM",
@@ -247,3 +247,18 @@ def test_dispute_search_accepts_short_numbers(tmp_path, monkeypatch):
     for q in ("25", "00025", "TRF-2026-25", "trf-2026-00025"):
         assert "Verdict for" in c.get(f"/dispute?q={q}").get_data(as_text=True), q
     assert "Transfers for JO-2026-1042" in c.get("/dispute?q=jo-2026-1042").get_data(as_text=True)
+
+
+def test_trace_follows_anything(tmp_path):
+    c = seed.build(str(tmp_path / "tr.db"), demo=True)
+    t = core.trace(c, "TRF-2026-00026")
+    assert t["kind"] == "transfer" and t["steps"][3]["state"] == "done" and t["events"]
+    batch = c.execute("SELECT batch FROM transfer_lines WHERE transfer_no = 'TRF-2026-00026' AND batch <> ''").fetchone()[0]
+    b = core.trace(c, batch.lower())
+    assert b["kind"] == "batch" and "TRF-2026-00026" in b["transfers"]
+    assert core.trace(c, "SFG-SM-2002")["kind"] == "part"
+    assert core.trace(c, "JO-2026-1041")["kind"] == "job order"
+    assert core.trace(c, "nothing-here") is None
+    ids = [e["id"] for e in core.trace(c, "JO-2026-1041")["events"]]
+    assert ids == sorted(ids)
+    c.close()

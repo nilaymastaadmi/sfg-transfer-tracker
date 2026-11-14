@@ -769,3 +769,55 @@ def directory(con, sla_hours, now=None):
     parts = [part_view(con, r["material_no"])
              for r in con.execute("SELECT material_no FROM materials ORDER BY material_no")]
     return {"plants": plants, "parts": parts}
+
+
+# --- trace: back-track anything --------------------------------------------
+
+def trace(con, q):
+    """One timeline for a transfer, a batch, a part or a job order, built only
+    from the append-only trail. Returns None if nothing matches."""
+    q = (q or "").strip().upper()
+    if not q:
+        return None
+    kind, transfers, extra_events = None, [], []
+    t = con.execute("SELECT transfer_no FROM transfers WHERE transfer_no = ?", (q,)).fetchone()
+    if t:
+        kind, transfers = "transfer", [q]
+    elif con.execute("SELECT 1 FROM job_orders WHERE job_order_no = ?", (q,)).fetchone():
+        kind = "job order"
+        transfers = [r[0] for r in con.execute("SELECT transfer_no FROM transfers WHERE job_order_no = ?", (q,))]
+        extra_events = [r for r in con.execute("SELECT * FROM events WHERE event_type = 'JOB_ORDERS_SYNCED' ORDER BY id")
+                        if q in r["payload"]]
+    elif con.execute("SELECT 1 FROM materials WHERE material_no = ?", (q,)).fetchone():
+        kind = "part"
+        transfers = [r[0] for r in con.execute("SELECT DISTINCT transfer_no FROM transfer_lines WHERE material_no = ?", (q,))]
+    else:
+        rows = con.execute("SELECT DISTINCT transfer_no FROM transfer_lines WHERE UPPER(batch) = ?", (q,)).fetchall()
+        if rows:
+            kind, transfers = "batch", [r[0] for r in rows]
+    if not kind:
+        return None
+    marks = ",".join("?" * len(transfers)) or "''"
+    events = con.execute(f"SELECT * FROM events WHERE transfer_no IN ({marks}) ORDER BY id", transfers).fetchall()
+    allev = sorted(list(events) + list(extra_events), key=lambda e: e["id"])
+    steps = None
+    if kind == "transfer":
+        tr = con.execute("SELECT * FROM transfers WHERE transfer_no = ?", (q,)).fetchone()
+        disc = con.execute("SELECT * FROM discrepancies WHERE transfer_no = ?", (q,)).fetchall()
+        real = [d for d in disc if d["kind"] != "NOT_RECEIVED"]
+        steps = [
+            {"label": "Job order", "detail": tr["job_order_no"], "state": "done"},
+            {"label": "Sent", "detail": f"{tr['from_plant']}/{tr['from_dept']} by {tr['sent_by']}", "state": "done", "ts": tr["sent_at"]},
+            {"label": "In transit", "detail": tr["vehicle_ref"] or "transport",
+             "state": "now" if tr["status"] == "IN_TRANSIT" else "done"},
+            {"label": "Counted", "detail": (f"at {tr['to_plant']} by {tr['received_by']}" if tr["received_at"] else "waiting"),
+             "state": "done" if tr["received_at"] else "todo", "ts": tr["received_at"]},
+            {"label": "Differences", "detail": ("none" if tr["received_at"] and not real else
+                                                (f"{len(real)} raised" if real else "after the count")),
+             "state": ("todo" if not tr["received_at"] else ("done" if not real else
+                       ("done" if all(d["status"] == "RESOLVED" for d in real) else "now")))},
+            {"label": "SAP 303 / 305", "detail": "export ready" if tr["received_at"] else "303 ready, 305 after the count",
+             "state": "done" if tr["received_at"] else "todo"},
+        ]
+    return {"kind": kind, "q": q, "transfers": transfers,
+            "events": [dict(e, data=json.loads(e["payload"])) for e in allev], "steps": steps}

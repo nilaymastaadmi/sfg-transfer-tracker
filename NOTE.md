@@ -23,7 +23,7 @@ Live demo: <https://mastaadmi.pythonanywhere.com> · Code: <https://github.com/n
 
 ### Where AI fits, and where it doesn't
 
-The record settles disputes, so it stays rule-based and exact. AI belongs at the edges: a photo of today's paper delivery note or a WhatsApp message turned into a draft send, a daily exceptions summary for plant heads, and reading discrepancy notes for repeat causes, 8D style. I built this with AI coding tools; I directed the design and checked it, and 19 automated tests cover the core rules.
+The record settles disputes, so it stays rule-based and exact. AI belongs at the edges: a photo of today's paper delivery note or a WhatsApp message turned into a draft send, a daily exceptions summary for plant heads, and reading discrepancy notes for repeat causes, 8D style. I built this with AI coding tools; I directed the design and checked it, and 20 automated tests cover the core rules.
 
 ### Shortcuts I took
 

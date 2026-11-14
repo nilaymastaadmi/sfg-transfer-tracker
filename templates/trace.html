@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_macros.html" import event_text with context %}
+{% block title %}Trace | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>Trace</h1>
+<p class="muted">Follow anything back through the record: a transfer number, a batch, a part number or a job order. Every line below comes from the append-only trail, oldest first.</p>
+<form method="get" class="filters">
+  <label>Transfer, batch, part or job order
+    <input name="q" value="{{ q }}" placeholder="e.g. TRF-2026-00026, S261114-08, SFG-SM-2002, JO-2026-1041" style="min-width:340px">
+  </label>
+  <button class="btn primary">Trace it</button>
+</form>
+<p class="small muted">Try: <a href="{{ url_for('trace_page', q='TRF-2026-00026') }}">TRF-2026-00026</a> (arrived short) &middot; <a href="{{ url_for('trace_page', q='SFG-SM-2002') }}">SFG-SM-2002</a> (the part most often short) &middot; <a href="{{ url_for('trace_page', q='JO-2026-1041') }}">JO-2026-1041</a></p>
+
+{% if q and not t %}<div class="flash warn">Nothing in the record matches "{{ q }}".</div>{% endif %}
+
+{% if t %}
+{% if t.steps %}
+<section class="card">
+  <h2>Journey of {{ t.q }}</h2>
+  <ol class="journey">
+    {% for s in t.steps %}
+    <li class="{{ s.state }}"><span class="pip"></span><b>{{ s.label }}</b><span class="small">{{ s.detail }}</span>{% if s.ts %}<span class="small muted">{{ s.ts|local }}</span>{% endif %}</li>
+    {% endfor %}
+  </ol>
+  <p class="small"><a href="{{ url_for('transfer_detail', tno=t.q) }}">Open the transfer</a> &middot; <a href="{{ url_for('dispute', q=t.q) }}">Verdict</a></p>
+</section>
+{% endif %}
+<section class="card">
+  <h2>{{ t.kind|capitalize }} {{ t.q }}: {{ t.events|length }} entries across {{ t.transfers|length }} transfer(s)</h2>
+  <ul class="timeline">
+    {% for e in t.events %}
+    <li class="e-{{ e.event_type|lower }}">
+      <div class="when small muted">{{ e.ts|local }} &middot; #{{ e.id }} &middot; <span class="mono" title="{{ e.hash }}">{{ e.hash[:8] }}</span></div>
+      <div><span class="etype e-{{ e.event_type|lower }}">{{ e.event_type|replace('_',' ')|title }}</span>
+        {% if e.transfer_no %}<a href="{{ url_for('trace_page', q=e.transfer_no) }}">{{ e.transfer_no }}</a>{% endif %}
+        <span class="muted small">by {{ e.actor }}{% if e.plant_code %} at {{ e.plant_code }}{% endif %}</span></div>
+      <div class="small">{{ event_text(e) }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

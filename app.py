@@ -333,6 +333,12 @@ def api_verdict(tno):
                    | {"transfer_no": tno, "open_discrepancies": [dict(d) for d in v["disc"] if d["status"] == "OPEN"]})
 
 
+@app.route("/trace")
+def trace_page():
+    q = request.args.get("q", "").strip()
+    return render_template("trace.html", q=q, t=core.trace(db(), q) if q else None)
+
+
 @app.route("/directory")
 def directory_page():
     return render_template("directory.html", d=core.directory(db(), SLA_HOURS))

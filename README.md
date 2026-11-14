@@ -39,7 +39,7 @@ Needs Python 3.10 or newer. On macOS or Linux:
 Then open http://127.0.0.1:5050. The first run creates a virtual environment and installs Flask (about 20 seconds). Data is saved in `instance/sfg_tracker.db` and survives restarts.
 
 - `./run.sh reset` rebuilds the database with fresh demo data
-- `./run.sh test` runs the 19 automated checks
+- `./run.sh test` runs the 20 automated checks
 
 On Windows: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python app.py`.
 
@@ -62,6 +62,8 @@ On Windows: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.t
 | Parts never arrive | In transit longer than 4 hours (set by `TRANSIT_SLA_HOURS`) shows as overdue; either plant can flag "not received"; a late receipt closes the flag |
 | Someone edits the record | The database blocks edits and deletes on the trail; a hash chain and a replay of the trail against the working tables flag changes made outside the app |
 | Two plants disagree | *Settle a dispute* gives a plain verdict for any transfer, from the trail |
+| "Where did this batch go?" | *Trace* follows a transfer, batch, part or job order back through the trail as one timeline |
+| "What is at each plant?" | *Directory* has a page per plant (in, out, overdue, open issues) and per part |
 | Is it getting better? | *Insights* tracks receipts on time, transit time, discrepancy rate and time to settle |
 
 ## How it's built
@@ -135,7 +137,7 @@ tracker/schema.sql     data model
 tracker/seed.py        builds the demo database
 data/                  dummy job order file and master data
 templates/, static/    UI
-tests/test_flow.py     19 end-to-end checks
+tests/test_flow.py     20 end-to-end checks
 run.sh                 one-command start
 render.yaml            config for an alternative host (Render); the live demo runs on PythonAnywhere
 ```
