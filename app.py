@@ -7,6 +7,7 @@ import csv
 import io
 import json
 import os
+import re
 
 from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template,
                    request, url_for)
@@ -311,6 +312,10 @@ def dispute():
     con = db()
     q = request.args.get("q", "").strip().upper()
     v, matches = None, []
+    m = re.fullmatch(r"(?:TRF-?)?(?:(20\d\d)-)?0*(\d{1,5})", q)
+    if m and not q.startswith("JO"):
+        # Accept what people actually type off a slip: "25", "00025", "TRF-2026-25".
+        q = f"TRF-{m.group(1) or core.utcnow().year}-{int(m.group(2)):05d}"
     if q:
         v = core.dispute_verdict(con, q, SLA_HOURS)
         if not v:

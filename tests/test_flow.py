@@ -236,3 +236,14 @@ def test_receive_rejects_silly_counts(con):
             core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: bad})
     assert core.receive_transfer(con, tno, receiving_plant="1300", received_by="R",
                                  lines={1: {"qty_received": 6}}) == "RECEIVED"
+
+
+def test_dispute_search_accepts_short_numbers(tmp_path, monkeypatch):
+    db = str(tmp_path / "w.db")
+    seed.build(db, demo=True).close()
+    import app as appmod
+    monkeypatch.setattr(appmod, "DB_PATH", db)
+    c = appmod.app.test_client()
+    for q in ("25", "00025", "TRF-2026-25", "trf-2026-00025"):
+        assert "Verdict for" in c.get(f"/dispute?q={q}").get_data(as_text=True), q
+    assert "Transfers for JO-2026-1042" in c.get("/dispute?q=jo-2026-1042").get_data(as_text=True)

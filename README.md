@@ -6,6 +6,10 @@ A working prototype that tracks semi-finished goods (SFGs) moving between Indus 
 
 **Design note (1 page):** [NOTE.md](NOTE.md)
 
+| Settle a dispute | Dashboard | Insights |
+|---|---|---|
+| ![Verdict for a transfer that was sent but never received](docs/dispute.png) | ![Dashboard](docs/dashboard.png) | ![Insights](docs/insights.png) |
+
 ## The process it supports
 
 ```mermaid
