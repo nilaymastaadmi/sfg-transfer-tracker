@@ -2,7 +2,7 @@
 
 A working prototype that tracks semi-finished goods (SFGs) moving between Indus International's three plants, from the moment one plant sends a part to the moment another confirms it arrived. Every step is written to an append-only trail that can't be edited, so when a plant says "we never got it", there is a record to check.
 
-**Live demo:** https://sfg-transfer-tracker-jixb.onrender.com (free hosting: the first load can take about 30 seconds while it wakes up, and demo data resets when it restarts)
+**Live demo:** https://mastaadmi.pythonanywhere.com (sample data for 3 plants and 4 job orders; anything you send or receive there is saved)
 
 **Design note (1 page):** [NOTE.md](NOTE.md)
 
@@ -96,8 +96,8 @@ Plant codes, material numbers, batch and unit of measure follow SAP's shape. A s
 ## Known limits
 
 - No login: people type their name. Production would use plant logins or badge scans.
-- The free hosted demo has temporary storage and reloads the demo data when it restarts.
-- SQLite is fine for a pilot at one site; a live rollout across three plants would move to Postgres without changing the business rules.
+- The live demo is a free PythonAnywhere site with one SQLite file on disk; it needs a monthly click to stay up.
+- SQLite is fine for a pilot at one site; a live rollout across three plants would move to Postgres, which changes the database layer, not the business rules.
 - No returns or partial-receipt flow yet; a mismatch is recorded and settled with a note.
 
 ## Project layout
@@ -111,5 +111,5 @@ data/                  dummy job order file and master data
 templates/, static/    UI
 tests/test_flow.py     15 end-to-end checks
 run.sh                 one-command start
-render.yaml            free hosted demo config
+render.yaml            config for an alternative host (Render); the live demo runs on PythonAnywhere
 ```
