@@ -2,7 +2,33 @@
 {% block title %}Receive parts | SFG Transfer Tracker{% endblock %}
 {% block body %}
 <h1>Receive parts</h1>
-<p class="muted">Pick your plant to see what has been sent to you and not yet confirmed. Or scan the QR code on the transfer slip.</p>
+<p class="muted">Scan the QR code on the transfer slip, or pick your plant to see what has been sent to you and not yet confirmed.</p>
+<section class="card scanbox">
+  <button class="btn primary" type="button" id="scanBtn">Scan slip</button>
+  <span class="small muted" id="scanMsg">Uses this device's camera. Point it at the QR code on the slip.</span>
+  <form method="get" action="{{ url_for('dispute') }}" class="inline" id="typeForm">
+    <input name="q" placeholder="Or type the transfer number" id="typeNo">
+    <button class="btn small" type="submit">Open</button>
+  </form>
+  <div id="reader"></div>
+</section>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+document.getElementById('typeForm').addEventListener('submit', e => {
+  const v = document.getElementById('typeNo').value.trim();
+  if (v) { e.preventDefault(); location.href = '{{ url_for("receive_lookup") }}?q=' + encodeURIComponent(v); }
+});
+document.getElementById('scanBtn').addEventListener('click', () => {
+  const msg = document.getElementById('scanMsg');
+  if (typeof Html5Qrcode === 'undefined') { msg.textContent = 'Scanner could not load; type the number instead.'; return; }
+  const qr = new Html5Qrcode('reader');
+  qr.start({ facingMode: 'environment' }, { fps: 10, qrbox: 220 }, text => {
+    const m = text.match(/TRF-\d{4}-\d{5}/);
+    if (m) { qr.stop(); msg.textContent = 'Found ' + m[0] + '. Opening...'; location.href = '{{ url_for("receive_lookup") }}?q=' + m[0]; }
+    else { msg.textContent = 'That code is not a transfer slip.'; }
+  }).catch(() => { msg.textContent = 'No camera available here. Type the transfer number instead.'; });
+});
+</script>
 <form method="get" class="filters">
   <label>My plant
     <select name="plant" onchange="this.form.submit()">

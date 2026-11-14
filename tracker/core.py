@@ -110,6 +110,23 @@ def verify_trail(con):
     return True, n, None
 
 
+def fingerprint(con):
+    """The latest event's hash: one short string that stands for the whole
+    record up to now. Kept outside the system (an evening email to both plant
+    heads), it catches even a full rebuild of the chain."""
+    r = con.execute("SELECT id, ts, hash FROM events ORDER BY id DESC LIMIT 1").fetchone()
+    return {"events": r["id"], "ts": r["ts"], "hash": r["hash"]} if r else None
+
+
+def check_fingerprint(con, h):
+    """Is a fingerprint taken earlier still part of today's chain?"""
+    h = (h or "").strip().lower()
+    if len(h) < 8:
+        return None
+    r = con.execute("SELECT id, ts FROM events WHERE hash LIKE ?", (h + "%",)).fetchone()
+    return {"found": bool(r), "id": r["id"] if r else None, "ts": r["ts"] if r else None}
+
+
 def reconcile(con):
     """Replay the trail and compare it with the working tables (transfers,
     lines, discrepancies). The trail is the source of truth: if someone edits

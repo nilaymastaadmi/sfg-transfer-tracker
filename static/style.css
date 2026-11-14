@@ -180,3 +180,7 @@ ul.timeline li.e-transfer_sent::before { background: var(--brand); }
 ul.timeline li.e-transfer_received::before { background: var(--ok); }
 ul.timeline li.e-discrepancy_raised::before { background: var(--alert); }
 ul.timeline li.e-discrepancy_resolved::before { background: #d99a1e; }
+.scanbox { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.scanbox form.inline { margin: 0 0 0 auto; }
+#reader { width: 100%; max-width: 360px; }
+code.big { font-size: 16px; padding: 2px 6px; background: #f3efe9; border: 1px solid var(--line); border-radius: 3px; }

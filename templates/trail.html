@@ -5,7 +5,7 @@
 <div class="hero">
   <div>
     <h1>The trail</h1>
-    <p class="muted">Every action, newest first. The database refuses edits and deletes on this log, and each row stores a hash of the row before it. On every load the page re-checks the chain and replays the log against the working tables, so a direct edit to the database shows up here. Someone with full database access could still rebuild the whole chain; the next step would be to send the latest hash outside the database each day.</p>
+    <p class="muted">Every action, newest first. The database refuses edits and deletes on this log, and each row stores a hash of the row before it. On every load the page re-checks the chain and replays the log against the working tables, so a direct edit to the database shows up here. Someone with full database access could still rebuild the whole chain, which is what the fingerprint below is for.</p>
   </div>
   <div class="hero-actions">
     <a class="btn small" href="{{ url_for('export_events') }}">Download CSV</a>
@@ -19,6 +19,19 @@
   {% if not problems %}Replayed the trail: every transfer, quantity and discrepancy in the working tables matches it.
   {% else %}The working tables disagree with the trail in {{ problems|length }} place(s), so something was edited outside the app:<ul class="small">{% for p in problems[:10] %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
 </div>
+<section class="card fp">
+  <h2>Record fingerprint</h2>
+  {% if fp %}<p>After {{ fp.events }} entries ({{ fp.ts|local }}): <code class="big">{{ fp.hash[:16] }}</code></p>{% endif %}
+  <p class="small muted">Send this short code to both plant heads at the end of each shift. If anyone ever rebuilt the record, an old fingerprint would no longer be in it. Paste one below to check.</p>
+  <form method="get" class="inline">
+    <input name="check" value="{{ check }}" placeholder="Paste a fingerprint from an earlier email" class="grow">
+    <button class="btn small">Check</button>
+  </form>
+  {% if checked is not none %}
+    {% if checked.found %}<div class="flash ok">Still in the record: entry #{{ checked.id }} from {{ checked.ts|local }}. Nothing before it has been rewritten.</div>
+    {% else %}<div class="flash error">Not in the record. Either the code was mistyped or the record has been rebuilt since it was sent.</div>{% endif %}
+  {% elif check %}<div class="flash warn">Paste at least 8 characters.</div>{% endif %}
+</section>
 <section class="card">
 <table>
   <tr><th>#</th><th>When</th><th>Event</th><th>Transfer</th><th>Who</th><th>Plant</th><th>Prev hash</th><th>Hash</th></tr>

@@ -137,7 +137,7 @@ def test_web_send_receive_and_api(tmp_path, monkeypatch):
     for path in ["/", "/send", "/receive", "/transfers", "/job-orders", "/trail", "/integration",
                  "/job-orders/JO-2026-1041", "/transfers/TRF-2026-00001", "/transfers/TRF-2026-00001/slip",
                  "/export/sap-goods-movements.csv", "/api/events", "/api/trail/verify",
-                 "/insights", "/api/insights", "/process", "/directory", "/trace", "/trace?q=TRF-2026-00026", "/trace?q=SFG-SM-2002", "/trace?q=JO-2026-1041", "/plants/1100", "/plants/1300", "/parts/SFG-SM-2002", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
+                 "/insights", "/api/insights", "/process", "/directory", "/trace", "/trace?q=TRF-2026-00026", "/api/trail/fingerprint", "/trail?check=abcdef12", "/trace?q=SFG-SM-2002", "/trace?q=JO-2026-1041", "/plants/1100", "/plants/1300", "/parts/SFG-SM-2002", "/dispute", "/dispute?q=TRF-2026-00001", "/dispute?q=JO-2026-1042",
                  "/api/transfers/TRF-2026-00001/verdict"]:
         assert client.get(path).status_code == 200, path
     r = client.post("/send", data={"job_order_no": "JO-2026-1043", "from_plant": "1200", "from_dept": "SM",
@@ -262,3 +262,26 @@ def test_trace_follows_anything(tmp_path):
     ids = [e["id"] for e in core.trace(c, "JO-2026-1041")["events"]]
     assert ids == sorted(ids)
     c.close()
+
+
+def test_receive_lookup_from_slip_number(tmp_path, monkeypatch):
+    db = str(tmp_path / "rl.db")
+    seed.build(db, demo=True).close()
+    import app as appmod
+    monkeypatch.setattr(appmod, "DB_PATH", db)
+    c = appmod.app.test_client()
+    r = c.get("/receive/open?q=27")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/transfers/TRF-2026-00027/receive")
+    r = c.get("/receive/open?q=99999")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/receive")
+    assert "Scan slip" in c.get("/receive").get_data(as_text=True)
+
+
+def test_fingerprint_catches_a_rebuilt_chain(con):
+    send(con)
+    fp = core.fingerprint(con)
+    assert core.check_fingerprint(con, fp["hash"][:16])["found"]
+    # Rebuild: drop the guards and rewrite every hash, as a careful tamperer would.
+    con.execute("DROP TRIGGER events_no_update")
+    con.execute("UPDATE events SET hash = 'x' || hash")
+    assert not core.check_fingerprint(con, fp["hash"][:16])["found"]

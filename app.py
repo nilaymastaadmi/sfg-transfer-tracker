@@ -177,6 +177,17 @@ def receive_queue():
                            overdue=overdue)
 
 
+@app.route("/receive/open")
+def receive_lookup():
+    q = request.args.get("q", "").strip().upper()
+    m = re.fullmatch(r"(?:TRF-?)?(?:(20\d\d)-)?0*(\d{1,5})", q)
+    tno = f"TRF-{m.group(1) or core.utcnow().year}-{int(m.group(2)):05d}" if m else q
+    if db().execute("SELECT 1 FROM transfers WHERE transfer_no = ?", (tno,)).fetchone():
+        return redirect(url_for("receive", tno=tno))
+    flash(f"No transfer {q} found. Check the number on the slip.", "error")
+    return redirect(url_for("receive_queue"))
+
+
 @app.route("/transfers/<tno>/receive", methods=["GET", "POST"])
 def receive(tno):
     con = db()
@@ -304,7 +315,10 @@ def trail():
     problems = core.reconcile(con)
     rows = [dict(r, data=json.loads(r["payload"])) for r in
             con.execute("SELECT * FROM events ORDER BY id DESC")]
-    return render_template("trail.html", rows=rows, ok=ok, n=n, bad=bad, problems=problems)
+    check = request.args.get("check", "").strip()
+    return render_template("trail.html", rows=rows, ok=ok, n=n, bad=bad, problems=problems,
+                           fp=core.fingerprint(con), check=check,
+                           checked=core.check_fingerprint(con, check) if check else None)
 
 
 @app.route("/dispute")
@@ -464,6 +478,11 @@ def api_events():
     limit = min(request.args.get("limit", 200, type=int), 1000)
     rows = db().execute("SELECT * FROM events WHERE id > ? ORDER BY id LIMIT ?", (after, limit)).fetchall()
     return jsonify([dict(r, payload=json.loads(r["payload"])) for r in rows])
+
+
+@app.get("/api/trail/fingerprint")
+def api_fingerprint():
+    return jsonify(core.fingerprint(db()))
 
 
 @app.get("/api/trail/verify")
