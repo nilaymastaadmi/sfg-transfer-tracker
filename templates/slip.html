@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slip {{ t.transfer_no }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body class="slip">
+<div class="slip-page">
+  <div class="slip-head">
+    <div>
+      <div class="muted small">INTER-PLANT TRANSFER SLIP</div>
+      <h1>{{ t.transfer_no }}</h1>
+      <div>Job order <b>{{ t.job_order_no }}</b></div>
+    </div>
+    <div id="qr"></div>
+  </div>
+  <table class="slip-meta">
+    <tr><td>From</td><td><b>{{ t.from_plant }}</b> {{ plant_names[t.from_plant] }} / {{ t.from_dept }}</td></tr>
+    <tr><td>To</td><td><b>{{ t.to_plant }}</b> {{ plant_names[t.to_plant] }}</td></tr>
+    <tr><td>Sent by</td><td>{{ t.sent_by }}, {{ t.sent_at|local }}</td></tr>
+    {% if t.vehicle_ref %}<tr><td>Vehicle</td><td>{{ t.vehicle_ref }}</td></tr>{% endif %}
+  </table>
+  <table class="slip-lines">
+    <tr><th>#</th><th>Material</th><th>Description</th><th>Batch</th><th>Qty</th></tr>
+    {% for l in lines %}
+    <tr><td>{{ l.line_no }}</td><td>{{ l.material_no }}</td><td>{{ l.description }}</td><td>{{ l.batch or '-' }}</td><td>{{ l.qty_sent|qty }} {{ l.uom }}</td></tr>
+    {% endfor %}
+  </table>
+  <p class="small">Receiving plant: scan the code or open <span class="mono">{{ receive_url }}</span> and count the parts before confirming.</p>
+  <p class="noprint"><button class="btn primary" onclick="window.print()">Print</button> <a class="btn" href="{{ url_for('transfer_detail', tno=t.transfer_no) }}">Back</a></p>
+</div>
+<script>
+try { new QRCode(document.getElementById('qr'), {text: {{ receive_url|tojson }}, width: 120, height: 120}); }
+catch (e) { document.getElementById('qr').textContent = ''; }
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Integration | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>How this talks to the job order system and SAP</h1>
+<p class="muted">Nothing here is connected for real. This page shows where the seams are, so a later integration is a matter of filling them in, not redesigning.</p>
+
+<section class="card">
+  <h2>The flow</h2>
+  <div class="flow">
+    <div class="box">
+      <b>Job order system</b><div class="small muted">owns the parent build</div>
+      <div class="small">today: <code>data/job_orders.json</code></div>
+    </div>
+    <div class="arrows">
+      <div>&rarr; job orders + bill of SFGs<br><span class="small muted">file import (later: API pull or webhook)</span></div>
+      <div>&larr; SFG status per job order<br><span class="small muted"><code>GET /api/job-orders/&lt;no&gt;/sfg-status</code></span></div>
+    </div>
+    <div class="box main">
+      <b>SFG Transfer Tracker</b><div class="small muted">owns inter-plant movements</div>
+      <div class="small">send &middot; receive &middot; discrepancies &middot; append-only trail</div>
+    </div>
+    <div class="arrows">
+      <div>&rarr; goods movements 303 / 305<br><span class="small muted">CSV today (later: SAP API via middleware)</span></div>
+      <div>&larr; material document numbers<br><span class="small muted">stored on the transfer (<code>sap_doc_out</code>, <code>sap_doc_in</code>)</span></div>
+    </div>
+    <div class="box">
+      <b>SAP</b><div class="small muted">inventory and valuation</div>
+      <div class="small">plant, material, batch, stock in transit</div>
+    </div>
+  </div>
+</section>
+
+<div class="grid2">
+<section class="card">
+  <h2>Endpoints available now</h2>
+  <table class="small">
+    <tr><td><code>GET /api/transfers</code></td><td>All transfers with lines and discrepancies. Filters: status, job_order_no, from_plant, to_plant.</td></tr>
+    <tr><td><code>POST /api/transfers</code></td><td>Log a send (same rules as the form). For a scanner app or another system.</td></tr>
+    <tr><td><code>POST /api/transfers/&lt;no&gt;/receive</code></td><td>Confirm receipt. Returns 409 if already received or the wrong plant.</td></tr>
+    <tr><td><code>GET /api/job-orders/&lt;no&gt;/sfg-status</code></td><td>What the job order system needs: required, sent, in transit, received, missing per SFG.</td></tr>
+    <tr><td><code>GET /api/events?after_id=N</code></td><td>The trail as a feed. A consumer stores the last id it read, so nothing is missed or read twice.</td></tr>
+    <tr><td><code>GET /api/trail/verify</code></td><td>Recomputes the hash chain.</td></tr>
+    <tr><td><code>GET /export/sap-goods-movements.csv</code></td><td>Every send and receipt as an SAP-style goods movement line.</td></tr>
+  </table>
+  <p class="small"><a href="{{ url_for('export_sap') }}">Download the SAP goods movement file</a> &middot; <a href="{{ url_for('api_events') }}">Open the event feed</a></p>
+</section>
+
+<section class="card">
+  <h2>Field mapping to SAP</h2>
+  <table class="small">
+    <tr><th>Tracker</th><th>SAP</th></tr>
+    <tr><td>plant_code (1100, 1200, 1300)</td><td>Plant (WERKS)</td></tr>
+    <tr><td>material_no</td><td>Material (MATNR), type HALB for semi-finished</td></tr>
+    <tr><td>batch</td><td>Batch (CHARG)</td></tr>
+    <tr><td>uom</td><td>Base unit (MEINS)</td></tr>
+    <tr><td>Send</td><td>Movement type 303: out of the issuing plant into stock in transit</td></tr>
+    <tr><td>Receive</td><td>Movement type 305: into stock at the receiving plant</td></tr>
+    <tr><td>Short quantity</td><td>Stays in transit in SAP until found or written off</td></tr>
+    <tr><td>transfer_no</td><td>Reference document (REF_DOC_NO)</td></tr>
+    <tr><td>job_order_no</td><td>Production order, once job orders live in SAP</td></tr>
+  </table>
+  <p class="small muted">Movement types assume SAP's standard two-step plant-to-plant transfer. If Indus uses stock transport orders instead, only the export mapping changes. To confirm with the SAP team.</p>
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{
+  "_comment": "DUMMY export from Indus's existing job order system (the system that tracks the parent build). The tracker reads this file; it never writes to it. In production this file would be replaced by an API call or an SAP production order feed with the same fields.",
+  "source_system": "JOB-ORDER-SYSTEM (dummy)",
+  "exported_at": "2026-11-14T08:00:00Z",
+  "job_orders": [
+    {
+      "job_order_no": "JO-2026-1041",
+      "parent_material": "FG-EVAP-4R36",
+      "description": "Evaporator coil, 4 row x 36 in, Cu/Al",
+      "qty": 20,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-18",
+      "status": "RELEASED",
+      "components": [
+        {"material_no": "SFG-HDR-1001", "qty_required": 20, "supply_plant": "1100"},
+        {"material_no": "SFG-HDR-1002", "qty_required": 20, "supply_plant": "1100"},
+        {"material_no": "SFG-SM-2001", "qty_required": 40, "supply_plant": "1200"},
+        {"material_no": "SFG-SM-2002", "qty_required": 40, "supply_plant": "1200"}
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1042",
+      "parent_material": "FG-COND-3R48",
+      "description": "Condenser coil, 3 row x 48 in, Cu/Al",
+      "qty": 12,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-20",
+      "status": "RELEASED",
+      "components": [
+        {"material_no": "SFG-HDR-1003", "qty_required": 12, "supply_plant": "1100"},
+        {"material_no": "SFG-HDR-1004", "qty_required": 12, "supply_plant": "1100"},
+        {"material_no": "SFG-SM-2001", "qty_required": 24, "supply_plant": "1200"},
+        {"material_no": "SFG-SM-2003", "qty_required": 12, "supply_plant": "1200"}
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1043",
+      "parent_material": "FG-AHU-6R60",
+      "description": "AHU chilled-water coil, 6 row x 60 in, Cu/Al",
+      "qty": 6,
+      "uom": "EA",
+      "assembly_plant": "1300",
+      "due_date": "2026-11-25",
+      "status": "RELEASED",
+      "components": [
+        {"material_no": "SFG-HDR-1001", "qty_required": 6, "supply_plant": "1100"},
+        {"material_no": "SFG-HDR-1002", "qty_required": 6, "supply_plant": "1100"},
+        {"material_no": "SFG-HDR-1005", "qty_required": 6, "supply_plant": "1100"},
+        {"material_no": "SFG-SM-2001", "qty_required": 12, "supply_plant": "1200"},
+        {"material_no": "SFG-SM-2003", "qty_required": 6, "supply_plant": "1200"}
+      ]
+    },
+    {
+      "job_order_no": "JO-2026-1044",
+      "parent_material": "FG-HPC-2R30",
+      "description": "Heat pump coil with brazed casing, 2 row x 30 in",
+      "qty": 30,
+      "uom": "EA",
+      "assembly_plant": "1100",
+      "due_date": "2026-11-22",
+      "status": "RELEASED",
+      "components": [
+        {"material_no": "SFG-SM-2001", "qty_required": 60, "supply_plant": "1200"},
+        {"material_no": "SFG-SM-2002", "qty_required": 60, "supply_plant": "1200"},
+        {"material_no": "SFG-SM-2003", "qty_required": 30, "supply_plant": "1200"}
+      ]
+    }
+  ]
+}

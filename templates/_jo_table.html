@@ -1,0 +1,14 @@
+<table>
+  <tr><th>SFG</th><th>Made at</th><th>Required</th><th>Sent</th><th>In transit</th><th>Received good</th><th>Still missing</th></tr>
+  {% for c in s.components %}
+  <tr>
+    <td><b>{{ c.material_no }}</b><br><span class="muted small">{{ c.description }}</span></td>
+    <td>{{ c.supply_plant }}</td>
+    <td>{{ c.qty_required|qty }}</td>
+    <td>{{ c.qty_sent|qty }}</td>
+    <td>{{ c.qty_in_transit|qty }}</td>
+    <td>{{ c.qty_received_good|qty }}</td>
+    <td>{% if c.qty_missing %}<span class="tag warn">{{ c.qty_missing|qty }}</span>{% else %}<span class="tag ok">0</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>

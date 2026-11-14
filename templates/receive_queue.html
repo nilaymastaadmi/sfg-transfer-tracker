@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Receive parts | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>Receive parts</h1>
+<p class="muted">Pick your plant to see what has been sent to you and not yet confirmed. Or scan the QR code on the transfer slip.</p>
+<form method="get" class="filters">
+  <label>My plant
+    <select name="plant" onchange="this.form.submit()">
+      <option value="">All plants</option>
+      {% for p in plants %}<option value="{{ p.plant_code }}" {{ 'selected' if plant==p.plant_code }}>{{ p.plant_code }} {{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+<section class="card">
+{% if rows %}
+<table>
+  <tr><th>Transfer</th><th>Job order</th><th>From</th><th>To</th><th>Sent</th><th>By</th><th></th></tr>
+  {% for t in rows %}
+  <tr class="{{ 'row-alert' if t.transfer_no in overdue }}">
+    <td><a href="{{ url_for('transfer_detail', tno=t.transfer_no) }}">{{ t.transfer_no }}</a></td>
+    <td>{{ t.job_order_no }}</td>
+    <td>{{ t.from_plant }}/{{ t.from_dept }}</td>
+    <td>{{ t.to_plant }}</td>
+    <td class="small">{{ t.sent_at|local }}{% if t.transfer_no in overdue %} <span class="tag alert">Overdue</span>{% endif %}</td>
+    <td class="small">{{ t.sent_by }}</td>
+    <td><a class="btn small primary" href="{{ url_for('receive', tno=t.transfer_no) }}">Receive</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted">Nothing waiting{% if plant %} for plant {{ plant }}{% endif %}.</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge, plant, event_text with context %}
+{% block body %}
+<div class="hero">
+  <div>
+    <h1>Semi-finished goods moving between plants</h1>
+    <p class="muted">Every send and every receipt is logged against a job order. Anything not confirmed within {{ SLA_HOURS|qty }} hours shows up here as overdue.</p>
+  </div>
+  <div class="hero-actions">
+    <a class="btn primary" href="{{ url_for('send') }}">Send parts</a>
+    <a class="btn" href="{{ url_for('receive_queue') }}">Receive parts</a>
+  </div>
+</div>
+
+<div class="kpis">
+  <a class="kpi" href="{{ url_for('transfers', status='IN_TRANSIT') }}"><span class="n">{{ counts.in_transit }}</span><span>in transit</span></a>
+  <a class="kpi {{ 'alert' if counts.overdue }}" href="{{ url_for('receive_queue') }}"><span class="n">{{ counts.overdue }}</span><span>overdue (sent, not received)</span></a>
+  <a class="kpi {{ 'warn' if counts.open_disc }}" href="#disc"><span class="n">{{ counts.open_disc }}</span><span>open discrepancies</span></a>
+  <a class="kpi" href="{{ url_for('transfers') }}"><span class="n">{{ counts.total }}</span><span>transfers logged</span></a>
+</div>
+
+<div class="grid2">
+  <section class="card">
+    <h2>Waiting to be received</h2>
+    {% if queue %}
+    <table>
+      <tr><th>Transfer</th><th>Route</th><th>Sent</th><th></th></tr>
+      {% for t in queue %}
+      <tr class="{{ 'row-alert' if t.transfer_no in overdue }}">
+        <td><a href="{{ url_for('transfer_detail', tno=t.transfer_no) }}">{{ t.transfer_no }}</a><br><span class="muted small">{{ t.job_order_no }}</span></td>
+        <td>{{ t.from_plant }} &rarr; {{ t.to_plant }}</td>
+        <td class="small">{{ t.sent_at|local }}<br>
+          {% if t.transfer_no in overdue %}<span class="tag alert">Overdue</span>{% endif %}
+          {% if t.transfer_no in flagged %}<span class="tag alert">Flagged not received</span>{% endif %}</td>
+        <td><a class="btn small" href="{{ url_for('receive', tno=t.transfer_no) }}">Receive</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">Nothing in transit.</p>{% endif %}
+  </section>
+
+  <section class="card" id="disc">
+    <h2>Open discrepancies</h2>
+    {% if open_disc %}
+    <table>
+      <tr><th>Transfer</th><th>Issue</th><th>Raised</th></tr>
+      {% for d in open_disc %}
+      <tr>
+        <td><a href="{{ url_for('transfer_detail', tno=d.transfer_no) }}">{{ d.transfer_no }}</a></td>
+        <td><span class="tag {{ 'alert' if d.kind=='NOT_RECEIVED' else 'warn' }}">{{ d.kind|replace('_',' ')|title }}</span>
+          {% if d.qty %}{{ d.qty|qty }} x {{ d.material_no }}{% endif %}</td>
+        <td class="small">{{ d.raised_at|local }}<br><span class="muted">{{ d.raised_by }}</span></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="muted">None. Every receipt matched what was sent.</p>{% endif %}
+  </section>
+</div>
+
+<div class="grid2">
+  <section class="card">
+    <h2>Job orders: are the SFGs at the assembly plant?</h2>
+    <table>
+      <tr><th>Job order</th><th>Assembly at</th><th>Due</th><th>SFGs</th></tr>
+      {% for s in jos %}
+      <tr>
+        <td><a href="{{ url_for('job_order_detail', jo=s.job_order_no) }}">{{ s.job_order_no }}</a><br><span class="muted small">{{ s.description }}</span></td>
+        <td>{{ s.assembly_plant }}</td>
+        <td class="small">{{ s.due_date }}</td>
+        <td>{% if s.sfg_ready %}<span class="tag ok">All received</span>{% else %}<span class="tag">{{ s.qty_missing_total|qty }} pcs still to arrive</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Latest on the trail <a class="small" href="{{ url_for('trail') }}">full trail &rarr;</a></h2>
+    <ul class="feed">
+      {% for e in recent %}
+      <li><span class="etype e-{{ e.event_type|lower }}">{{ e.event_type|replace('_',' ')|title }}</span>
+        {% if e.transfer_no %}<a href="{{ url_for('transfer_detail', tno=e.transfer_no) }}">{{ e.transfer_no }}</a>{% endif %}
+        <div class="small">{{ event_text(e) }}</div>
+        <div class="muted small">{{ e.ts|local }} &middot; {{ e.actor }}</div></li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

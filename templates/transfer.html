@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge, plant, event_text with context %}
+{% block title %}{{ t.transfer_no }} | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<div class="hero">
+  <div>
+    <h1>{{ t.transfer_no }} {{ badge(t.status) }}
+      {% if is_overdue %}<span class="tag alert">Overdue</span>{% endif %}
+      {% if flagged %}<span class="tag alert">Flagged not received</span>{% endif %}</h1>
+    <p class="muted">Job order <a href="{{ url_for('job_order_detail', jo=t.job_order_no) }}">{{ t.job_order_no }}</a></p>
+  </div>
+  <div class="hero-actions">
+    <a class="btn" href="{{ url_for('slip', tno=t.transfer_no) }}" target="_blank">Print slip</a>
+    {% if t.status == 'IN_TRANSIT' %}<a class="btn primary" href="{{ url_for('receive', tno=t.transfer_no) }}">Receive</a>{% endif %}
+  </div>
+</div>
+
+<div class="handoff">
+  <div class="side">
+    <div class="label">Sent</div>
+    <div>{{ plant(t.from_plant) }} / {{ t.from_dept }}</div>
+    <div><b>{{ t.sent_by }}</b></div>
+    <div class="small">{{ t.sent_at|local }}</div>
+    {% if t.vehicle_ref %}<div class="small muted">{{ t.vehicle_ref }}</div>{% endif %}
+    {% if t.send_note %}<div class="small">"{{ t.send_note }}"</div>{% endif %}
+  </div>
+  <div class="arrow {{ 'pending' if t.status=='IN_TRANSIT' }}">&rarr;</div>
+  <div class="side {{ 'empty' if t.status=='IN_TRANSIT' }}">
+    <div class="label">Received</div>
+    <div>{{ plant(t.to_plant) }}</div>
+    {% if t.received_at %}
+      <div><b>{{ t.received_by }}</b></div>
+      <div class="small">{{ t.received_at|local }}</div>
+      {% if t.receive_note %}<div class="small">"{{ t.receive_note }}"</div>{% endif %}
+    {% else %}
+      <div class="muted">Not confirmed yet</div>
+    {% endif %}
+  </div>
+</div>
+
+<section class="card">
+  <h2>Parts</h2>
+  <table>
+    <tr><th>#</th><th>Material</th><th>Batch</th><th>Sent</th><th>Received</th><th>Damaged</th><th>Difference</th></tr>
+    {% for l in lines %}
+    {% set diff = (l.qty_received - l.qty_sent) if l.qty_received is not none else none %}
+    <tr>
+      <td>{{ l.line_no }}</td>
+      <td><b>{{ l.material_no }}</b><br><span class="muted small">{{ l.description }}</span></td>
+      <td class="small">{{ l.batch or '-' }}</td>
+      <td>{{ l.qty_sent|qty }} {{ l.uom }}</td>
+      <td>{{ l.qty_received|qty if l.qty_received is not none else '-' }}</td>
+      <td>{{ l.qty_damaged|qty if l.qty_damaged else '-' }}</td>
+      <td>{% if diff is none %}-{% elif diff == 0 %}<span class="tag ok">match</span>{% else %}<span class="tag warn">{{ '%+g'|format(diff) }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+
+{% if disc %}
+<section class="card">
+  <h2>Discrepancies</h2>
+  {% for d in disc %}
+  <div class="disc {{ d.status|lower }}">
+    <div><span class="tag {{ 'ok' if d.status=='RESOLVED' else ('alert' if d.kind=='NOT_RECEIVED' else 'warn') }}">{{ d.kind|replace('_',' ')|title }}</span>
+      {% if d.qty %}<b>{{ d.qty|qty }} x {{ d.material_no }}</b> (line {{ d.line_no }}){% endif %}
+      &middot; raised by {{ d.raised_by }}, {{ d.raised_at|local }} &middot; <b>{{ d.status|title }}</b></div>
+    {% if d.status == 'RESOLVED' %}
+      <div class="small">Settled by {{ d.resolved_by }}, {{ d.resolved_at|local }}: {{ d.resolution }}</div>
+    {% else %}
+      <form method="post" action="{{ url_for('resolve', did=d.id) }}" class="inline">
+        <input name="resolved_by" value="{{ me }}" placeholder="Your name" required>
+        <input name="resolution" placeholder="How was it settled? e.g. found 2 on the truck, re-sent" required class="grow">
+        <button class="btn small">Resolve</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if t.status == 'IN_TRANSIT' and not flagged %}
+<section class="card">
+  <h2>Parts didn't arrive?</h2>
+  <p class="small muted">Either plant can flag this. The transfer stays open, so it can still be received if the parts turn up.</p>
+  <form method="post" action="{{ url_for('not_received', tno=t.transfer_no) }}" class="inline">
+    <input name="reported_by" value="{{ me }}" placeholder="Your name" required>
+    <input name="note" placeholder="Where did you check?" class="grow">
+    <button class="btn small danger">Flag as not received</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Trail for this transfer</h2>
+  <p class="small muted">Append-only. These rows can't be edited or deleted, and each one is chained to the one before it by a hash.</p>
+  <table>
+    <tr><th>#</th><th>When</th><th>What</th><th>Who</th><th>Plant</th><th>Hash</th></tr>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.id }}</td>
+      <td class="small">{{ e.ts|local }}</td>
+      <td><span class="etype e-{{ e.event_type|lower }}">{{ e.event_type|replace('_',' ')|title }}</span><div class="small">{{ event_text(e) }}</div></td>
+      <td class="small">{{ e.actor }}</td>
+      <td>{{ e.plant_code or '' }}</td>
+      <td class="mono small" title="{{ e.hash }}">{{ e.hash[:10] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

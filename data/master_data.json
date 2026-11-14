@@ -1,0 +1,24 @@
+{
+  "_comment": "DUMMY master data. Plant codes use SAP's 4-character plant format; material numbers stand in for SAP material numbers. Swap this file for an SAP master data extract later.",
+  "plants": [
+    {"plant_code": "1100", "name": "Plant 1 - Headers", "location": "SAIF Zone, Sharjah"},
+    {"plant_code": "1200", "name": "Plant 2 - Sheet Metal", "location": "SAIF Zone, Sharjah"},
+    {"plant_code": "1300", "name": "Plant 3 - Coil Assembly", "location": "SAIF Zone, Sharjah"}
+  ],
+  "departments": [
+    {"dept_code": "HDR", "name": "Headers", "plant_code": "1100"},
+    {"dept_code": "BRZ", "name": "Brazing and Casing", "plant_code": "1100"},
+    {"dept_code": "SM", "name": "Sheet Metal", "plant_code": "1200"},
+    {"dept_code": "ASM", "name": "Coil Assembly", "plant_code": "1300"}
+  ],
+  "materials": [
+    {"material_no": "SFG-HDR-1001", "description": "Inlet header, Cu 7/8 in, 24 ports", "uom": "EA", "dept_code": "HDR"},
+    {"material_no": "SFG-HDR-1002", "description": "Suction header, Cu 1-1/8 in, 24 ports", "uom": "EA", "dept_code": "HDR"},
+    {"material_no": "SFG-HDR-1003", "description": "Inlet header, Cu 5/8 in, 16 ports", "uom": "EA", "dept_code": "HDR"},
+    {"material_no": "SFG-HDR-1004", "description": "Outlet header, Cu 7/8 in, 16 ports", "uom": "EA", "dept_code": "HDR"},
+    {"material_no": "SFG-HDR-1005", "description": "Distributor assembly, 12 circuits", "uom": "EA", "dept_code": "HDR"},
+    {"material_no": "SFG-SM-2001", "description": "End plate (tube sheet), galvanised steel", "uom": "EA", "dept_code": "SM"},
+    {"material_no": "SFG-SM-2002", "description": "Casing side channel, galvanised steel", "uom": "EA", "dept_code": "SM"},
+    {"material_no": "SFG-SM-2003", "description": "Drain pan, SS304", "uom": "EA", "dept_code": "SM"}
+  ]
+}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import event_text with context %}
+{% block title %}Trail | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<div class="hero">
+  <div>
+    <h1>The trail</h1>
+    <p class="muted">Every action, oldest at the bottom. The database refuses edits and deletes on this table, and each row stores a hash of the row before it. If anyone changed a row directly in the file, the check below would fail and point at the row.</p>
+  </div>
+  <div class="hero-actions">
+    <a class="btn small" href="{{ url_for('export_events') }}">Download CSV</a>
+    <a class="btn small" href="{{ url_for('api_events') }}">JSON feed</a>
+  </div>
+</div>
+<div class="flash {{ 'ok' if ok else 'error' }}">
+  {% if ok %}Hash chain verified: all {{ n }} events intact.{% else %}Chain broken at event {{ bad }}. That row or one before it was changed outside the app.{% endif %}
+</div>
+<section class="card">
+<table>
+  <tr><th>#</th><th>When</th><th>Event</th><th>Transfer</th><th>Who</th><th>Plant</th><th>Prev hash</th><th>Hash</th></tr>
+  {% for e in rows %}
+  <tr>
+    <td>{{ e.id }}</td>
+    <td class="small">{{ e.ts|local }}</td>
+    <td><span class="etype e-{{ e.event_type|lower }}">{{ e.event_type|replace('_',' ')|title }}</span><div class="small">{{ event_text(e) }}</div></td>
+    <td>{% if e.transfer_no %}<a href="{{ url_for('transfer_detail', tno=e.transfer_no) }}">{{ e.transfer_no }}</a>{% endif %}</td>
+    <td class="small">{{ e.actor }}</td>
+    <td>{{ e.plant_code or '' }}</td>
+    <td class="mono small" title="{{ e.prev_hash }}">{{ e.prev_hash[:8] }}</td>
+    <td class="mono small" title="{{ e.hash }}">{{ e.hash[:8] }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</section>
+{% endblock %}

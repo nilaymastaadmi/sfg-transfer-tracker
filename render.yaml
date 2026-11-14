@@ -1,0 +1,17 @@
+# Free hosted demo on Render (render.com). Connect the GitHub repo as a Blueprint.
+# Note: the free plan's disk is temporary, so the demo database is rebuilt with
+# fresh demo data whenever the service restarts or wakes from sleep.
+services:
+  - type: web
+    name: sfg-transfer-tracker
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: SECRET_KEY
+        generateValue: true
+      - key: TRANSIT_SLA_HOURS
+        value: "4"

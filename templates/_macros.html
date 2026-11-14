@@ -1,0 +1,22 @@
+{% macro badge(status) -%}
+<span class="badge s-{{ status|lower }}">{{ STATUS_LABEL.get(status, status) }}</span>
+{%- endmacro %}
+
+{% macro plant(code) -%}
+<span title="{{ plant_names.get(code, '') }}"><b>{{ code }}</b> <span class="muted">{{ plant_names.get(code, '').split(' - ')[-1] }}</span></span>
+{%- endmacro %}
+
+{% macro event_text(e) -%}
+{%- set d = e.data -%}
+{%- if e.event_type == 'TRANSFER_SENT' -%}
+  Sent {{ d.lines|length }} line(s), {{ d.lines|sum(attribute='qty_sent')|qty }} pcs, from {{ d.from_plant }}/{{ d.from_dept }} to {{ d.to_plant }} for {{ d.job_order_no }}{% if d.vehicle_ref %} via {{ d.vehicle_ref }}{% endif %}
+{%- elif e.event_type == 'TRANSFER_RECEIVED' -%}
+  Received at {{ e.plant_code }}: {% for l in d.lines %}{{ l.material_no }} {{ l.qty_received|qty }}/{{ l.qty_sent|qty }}{% if l.qty_damaged %} ({{ l.qty_damaged|qty }} damaged){% endif %}{{ ', ' if not loop.last }}{% endfor %}
+{%- elif e.event_type == 'DISCREPANCY_RAISED' -%}
+  {% if d.kind == 'NOT_RECEIVED' %}Flagged as NOT RECEIVED{% if d.note %}: "{{ d.note }}"{% endif %}{% else %}{{ d.kind|title }}: {{ d.qty|qty }} x {{ d.material_no }} (line {{ d.line_no }}){% endif %}
+{%- elif e.event_type == 'DISCREPANCY_RESOLVED' -%}
+  Resolved {{ d.kind|lower|replace('_',' ') }}: {{ d.resolution }}
+{%- elif e.event_type == 'JOB_ORDERS_SYNCED' -%}
+  Job orders read from {{ d.source_file }} ({{ d.job_orders|length }} orders)
+{%- else -%}{{ e.event_type }}{%- endif -%}
+{%- endmacro %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Send parts | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>Send parts to another plant</h1>
+<p class="muted">Fill this in when parts leave your plant. It creates a transfer number and a printable slip that travels with the parts.</p>
+
+<form method="post" class="card form" id="sendForm">
+  <div class="row3">
+    <label>Job order
+      <select name="job_order_no" id="jo" required>
+        <option value="">Pick a job order</option>
+        {% for j in jos %}<option value="{{ j.job_order_no }}" {{ 'selected' if form.job_order_no==j.job_order_no }}>{{ j.job_order_no }}: {{ j.description }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>From plant
+      <select name="from_plant" id="fromPlant" required>
+        <option value="">Pick a plant</option>
+        {% for p in plants %}<option value="{{ p.plant_code }}" {{ 'selected' if form.from_plant==p.plant_code }}>{{ p.plant_code }} {{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>From department
+      <select name="from_dept" id="fromDept" required></select>
+    </label>
+  </div>
+  <div class="row3">
+    <label>To plant
+      <select name="to_plant" id="toPlant" required>
+        <option value="">Pick a plant</option>
+        {% for p in plants %}<option value="{{ p.plant_code }}" {{ 'selected' if form.to_plant==p.plant_code }}>{{ p.plant_code }} {{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Sent by (your name)
+      <input name="sent_by" value="{{ form.sent_by or me }}" required placeholder="e.g. Ravi K.">
+    </label>
+    <label>Vehicle or trolley (optional)
+      <input name="vehicle_ref" value="{{ form.vehicle_ref }}" placeholder="e.g. Forklift trolley T-04">
+    </label>
+  </div>
+
+  <h3>Parts on this trip</h3>
+  <p class="muted small" id="bomHint">Pick a job order first. Only parts on its bill of materials can be sent against it.</p>
+  <table class="lines">
+    <tr><th>#</th><th>Material</th><th>Quantity</th><th>Batch (optional)</th></tr>
+    {% for i in range(1, 6) %}
+    <tr>
+      <td>{{ i }}</td>
+      <td><select name="material_{{ i }}" class="mat" data-val="{{ form['material_' ~ i] }}"><option value="">-</option></select></td>
+      <td><input name="qty_{{ i }}" type="number" min="0" step="any" value="{{ form['qty_' ~ i] }}" class="qty"></td>
+      <td><input name="batch_{{ i }}" value="{{ form['batch_' ~ i] }}" placeholder="e.g. H261114-01"></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <label>Note (optional)
+    <input name="note" value="{{ form.note }}" placeholder="Anything the receiving plant should know">
+  </label>
+  <button class="btn primary" type="submit">Log as sent</button>
+</form>
+
+<script>
+const BOM = {{ bom|tojson }};
+const JO = {{ jo_info|tojson }};
+const DEPTS = {{ depts|tojson }};
+const jo = document.getElementById('jo'), fromPlant = document.getElementById('fromPlant'),
+      fromDept = document.getElementById('fromDept'), toPlant = document.getElementById('toPlant');
+const keepDept = {{ (form.from_dept or '')|tojson }};
+
+function fillDepts() {
+  const p = fromPlant.value;
+  fromDept.innerHTML = '';
+  DEPTS.filter(d => d.plant_code === p).forEach(d => {
+    const o = new Option(d.dept_code + ' ' + d.name, d.dept_code);
+    if (d.dept_code === keepDept) o.selected = true;
+    fromDept.add(o);
+  });
+  if (!fromDept.options.length) fromDept.add(new Option('Pick a plant first', ''));
+}
+function fillMaterials(userChange) {
+  const items = BOM[jo.value] || [];
+  document.querySelectorAll('select.mat').forEach((s, i) => {
+    const keep = s.dataset.val || s.value;
+    s.innerHTML = '';
+    s.add(new Option('-', ''));
+    items.forEach(c => s.add(new Option(c.material_no + '  ' + c.description + '  (needs ' + c.qty_required + ', made at ' + c.supply_plant + ')', c.material_no)));
+    if (keep && items.some(c => c.material_no === keep)) s.value = keep;
+    s.dataset.val = '';
+  });
+  const hint = document.getElementById('bomHint');
+  if (JO[jo.value]) {
+    hint.textContent = JO[jo.value].description + '. Assembly at plant ' + JO[jo.value].assembly_plant + '.';
+    if (userChange) toPlant.value = JO[jo.value].assembly_plant;
+  }
+}
+jo.addEventListener('change', () => fillMaterials(true));
+fromPlant.addEventListener('change', fillDepts);
+fillDepts(); fillMaterials(false);
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge with context %}
+{% block title %}{{ s.job_order_no }} | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>{{ s.job_order_no }} &middot; {{ s.description }}
+  {% if s.sfg_ready %}<span class="tag ok">All SFGs received</span>{% else %}<span class="tag">{{ s.qty_missing_total|qty }} pcs still to arrive</span>{% endif %}</h1>
+<p class="muted">{{ s.qty|qty }} x {{ s.parent_material }} &middot; assembly at plant {{ s.assembly_plant }} &middot; due {{ s.due_date }} &middot; {{ s.job_order_status }} in the job order system</p>
+<section class="card">
+  <h2>SFG status (what the job order system gets back)</h2>
+  {% include "_jo_table.html" %}
+  <p class="small muted">Same data as JSON: <a href="{{ url_for('api_jo_status', jo=s.job_order_no) }}"><code>GET /api/job-orders/{{ s.job_order_no }}/sfg-status</code></a>. "Received good" counts only parts received at the assembly plant, minus damaged ones.</p>
+</section>
+<section class="card">
+  <h2>Transfers for this job order</h2>
+  <table>
+    <tr><th>Transfer</th><th>Route</th><th>Sent</th><th>Status</th></tr>
+    {% for t in rows %}
+    <tr><td><a href="{{ url_for('transfer_detail', tno=t.transfer_no) }}">{{ t.transfer_no }}</a></td>
+      <td>{{ t.from_plant }}/{{ t.from_dept }} &rarr; {{ t.to_plant }}</td>
+      <td class="small">{{ t.sent_at|local }}</td><td>{{ badge(t.status) }}</td></tr>
+    {% else %}<tr><td colspan="4" class="muted">Nothing sent against this job order yet.</td></tr>{% endfor %}
+  </table>
+  <p><a class="btn primary" href="{{ url_for('send') }}">Send parts for a job order</a></p>
+</section>
+{% endblock %}

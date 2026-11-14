@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Job orders | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<div class="hero">
+  <div>
+    <h1>Job orders</h1>
+    <p class="muted">Read from <code>data/job_orders.json</code>, a dummy export of the existing job order system. Last read {{ synced|local }}. The tracker never edits job orders; it only reports back which SFGs have arrived.</p>
+  </div>
+  <form method="post" action="{{ url_for('job_orders_sync') }}"><button class="btn">Re-read job order file</button></form>
+</div>
+{% for s in jos %}
+<section class="card">
+  <h2><a href="{{ url_for('job_order_detail', jo=s.job_order_no) }}">{{ s.job_order_no }}</a> &middot; {{ s.description }}
+    {% if s.sfg_ready %}<span class="tag ok">All SFGs received</span>{% else %}<span class="tag">{{ s.qty_missing_total|qty }} pcs still to arrive</span>{% endif %}</h2>
+  <p class="small muted">{{ s.qty|qty }} x {{ s.parent_material }} &middot; assembly at plant {{ s.assembly_plant }} &middot; due {{ s.due_date }} &middot; {{ s.job_order_status }}</p>
+  {% include "_jo_table.html" %}
+</section>
+{% endfor %}
+{% endblock %}

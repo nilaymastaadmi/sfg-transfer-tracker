@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge, plant with context %}
+{% block title %}Receive {{ t.transfer_no }} | SFG Transfer Tracker{% endblock %}
+{% block body %}
+<h1>Receive {{ t.transfer_no }} {{ badge(t.status) }}</h1>
+<p class="muted">Sent by {{ t.sent_by }} from {{ plant(t.from_plant) }} / {{ t.from_dept }} on {{ t.sent_at|local }} for job order <a href="{{ url_for('job_order_detail', jo=t.job_order_no) }}">{{ t.job_order_no }}</a>{% if t.vehicle_ref %}, via {{ t.vehicle_ref }}{% endif %}.</p>
+
+{% if t.status != 'IN_TRANSIT' %}
+<div class="flash warn">This transfer was already received by {{ t.received_by }} on {{ t.received_at|local }}. <a href="{{ url_for('transfer_detail', tno=t.transfer_no) }}">See the record</a>.</div>
+{% else %}
+<form method="post" class="card form">
+  <p><b>Count what actually arrived.</b> The sent quantity is hidden on purpose (a blind count), so the number you enter is a real count, not a copy of the slip. If it differs from what was sent, the tracker logs a discrepancy automatically.</p>
+  <table class="lines">
+    <tr><th>#</th><th>Material</th><th>Batch</th><th>Received (counted)</th><th>Of which damaged</th></tr>
+    {% for l in lines %}
+    <tr>
+      <td>{{ l.line_no }}</td>
+      <td><b>{{ l.material_no }}</b><br><span class="muted small">{{ l.description }}</span></td>
+      <td class="small">{{ l.batch or '-' }}</td>
+      <td><input name="rec_{{ l.line_no }}" type="number" min="0" step="any" required value="{{ form['rec_' ~ l.line_no] }}" class="qty"> {{ l.uom }}</td>
+      <td><input name="dmg_{{ l.line_no }}" type="number" min="0" step="any" value="{{ form['dmg_' ~ l.line_no] or 0 }}" class="qty"></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div class="row3">
+    <label>Receiving plant
+      <select name="receiving_plant" required>
+        {% for p in plants %}<option value="{{ p.plant_code }}" {{ 'selected' if (form.receiving_plant or t.to_plant)==p.plant_code }}>{{ p.plant_code }} {{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Received by (your name)
+      <input name="received_by" value="{{ form.received_by or me }}" required placeholder="e.g. Ahmed S.">
+    </label>
+    <label>Note (optional)
+      <input name="note" value="{{ form.note }}" placeholder="e.g. 2 dented on the corner">
+    </label>
+  </div>
+  <button class="btn primary" type="submit">Confirm receipt</button>
+</form>
+{% endif %}
+{% endblock %}
