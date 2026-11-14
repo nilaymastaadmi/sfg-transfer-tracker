@@ -2,7 +2,7 @@
 
 A working prototype that tracks semi-finished goods (SFGs) moving between Indus International's three plants, from the moment one plant sends a part to the moment another confirms it arrived. Every step is written to an append-only trail that can't be edited, so when a plant says "we never got it", there is a record to check.
 
-**Live demo:** _link added after deploy_ (free hosting: the first load can take about 30 seconds while it wakes up, and demo data resets when it restarts)
+**Live demo:** https://sfg-transfer-tracker-jixb.onrender.com (free hosting: the first load can take about 30 seconds while it wakes up, and demo data resets when it restarts)
 
 **Design note (1 page):** [NOTE.md](NOTE.md)
 
