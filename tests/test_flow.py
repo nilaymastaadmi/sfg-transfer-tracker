@@ -211,7 +211,7 @@ def test_sap_receipt_is_capped_at_sent_quantity(con):
 def test_dispute_verdicts(con):
     tno = send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 20}], vehicle_ref="Trolley T-02")
     v = core.dispute_verdict(con, tno, 4)
-    assert v["level"] in ("warn", "alert") and "hasn't received" in v["verdict"] and v["intact"]
+    assert v["level"] in ("warn", "alert") and "has not confirmed receipt" in v["verdict"] and v["intact"]
     core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: {"qty_received": 18}})
     v = core.dispute_verdict(con, tno, 4)
     assert "2 piece(s) short" in v["verdict"] and v["level"] == "warn"
@@ -226,3 +226,13 @@ def test_insights_on_demo_data(tmp_path):
     i = core.insights(c, 4)
     assert i["transfers"] >= 20 and i["flags"] and core.reconcile(c) == [] and core.verify_trail(c)[0]
     c.close()
+
+
+def test_receive_rejects_silly_counts(con):
+    tno = send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 6}])
+    for bad in ({"qty_received": 5.5}, {"qty_received": 6, "qty_damaged": 0.25}, {"qty_received": 999999},
+                {"qty_received": True}):
+        with pytest.raises(core.TrackerError):
+            core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: bad})
+    assert core.receive_transfer(con, tno, receiving_plant="1300", received_by="R",
+                                 lines={1: {"qty_received": 6}}) == "RECEIVED"

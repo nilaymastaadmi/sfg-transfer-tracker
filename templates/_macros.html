@@ -9,7 +9,7 @@
 {% macro event_text(e) -%}
 {%- set d = e.data -%}
 {%- if e.event_type == 'TRANSFER_SENT' -%}
-  Sent {{ d.lines|length }} line(s), {{ d.lines|sum(attribute='qty_sent')|qty }} pcs, from {{ d.from_plant }}/{{ d.from_dept }} to {{ d.to_plant }} for {{ d.job_order_no }}{% if d.vehicle_ref %} via {{ d.vehicle_ref }}{% endif %}
+  Sent {{ d.lines|length }} line(s) from {{ d.from_plant }}/{{ d.from_dept }} to {{ d.to_plant }} for {{ d.job_order_no }}{% if d.vehicle_ref %} via {{ d.vehicle_ref }}{% endif %}
 {%- elif e.event_type == 'TRANSFER_RECEIVED' -%}
   Received at {{ e.plant_code }}: {% for l in d.lines %}{{ l.material_no }} {{ l.qty_received|qty }}/{{ l.qty_sent|qty }}{% if l.qty_damaged %} ({{ l.qty_damaged|qty }} damaged){% endif %}{{ ', ' if not loop.last }}{% endfor %}
 {%- elif e.event_type == 'DISCREPANCY_RAISED' -%}

@@ -71,26 +71,6 @@ const roi = () => {
 };
 document.querySelectorAll('.roi input').forEach(i => i.addEventListener('input', roi));
 </script>
-<section class="card">
-  <h2>What is it worth? (fill in your own numbers)</h2>
-  <p class="small muted">I don't know Indus's numbers, so nothing is filled in. The week-0 baseline on the <a href="{{ url_for('process') }}">process page</a> is where these come from.</p>
-  <div class="roi">
-    <label>Disputes or searches per week <input type="number" min="0" step="any" id="r1" inputmode="decimal"></label>
-    <label>Hours lost per dispute (people x hours) <input type="number" min="0" step="any" id="r2" inputmode="decimal"></label>
-    <label>Cost per hour, AED (labour plus line downtime) <input type="number" min="0" step="any" id="r3" inputmode="decimal"></label>
-    <label>Share the tracker removes, % <input type="number" min="0" max="100" step="any" id="r4" inputmode="decimal" placeholder="e.g. 50"></label>
-  </div>
-  <p class="big" id="roiOut">Enter the four numbers to see a yearly figure.</p>
-</section>
-<script>
-const roi = () => {
-  const v = ['r1','r2','r3','r4'].map(id => parseFloat(document.getElementById(id).value));
-  const out = document.getElementById('roiOut');
-  if (v.some(x => isNaN(x))) { out.textContent = 'Enter the four numbers to see a yearly figure.'; return; }
-  const yearly = v[0] * v[1] * v[2] * (v[3] / 100) * 50;
-  out.textContent = 'About AED ' + Math.round(yearly).toLocaleString() + ' a year (' + v[0] + ' x ' + v[1] + ' h x AED ' + v[2] + ' x ' + v[3] + '% x 50 weeks).';
-};
-document.querySelectorAll('.roi input').forEach(i => i.addEventListener('input', roi));
-</script>
+
 
 {% endblock %}

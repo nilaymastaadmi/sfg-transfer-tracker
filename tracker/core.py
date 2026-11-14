@@ -211,6 +211,8 @@ def _next_transfer_no(con, year):
 # --- the two core actions --------------------------------------------------
 
 def _num(v, field):
+    if isinstance(v, bool):
+        raise TrackerError(f"{field} must be a number.")
     try:
         x = float(v)
     except (TypeError, ValueError):
@@ -386,6 +388,10 @@ def receive_transfer(con, transfer_no, *, receiving_plant, received_by, lines, n
                 raise TrackerError(f"Line {dl['line_no']}: quantities can't be negative.")
             if dmg > rec:
                 raise TrackerError(f"Line {dl['line_no']}: damaged can't be more than received.")
+            if dl["uom"] == "EA" and (rec != int(rec) or dmg != int(dmg)):
+                raise TrackerError(f"Line {dl['line_no']}: count whole pieces.")
+            if rec > 2 * dl["qty_sent"]:
+                raise TrackerError(f"Line {dl['line_no']}: {rec:g} is more than twice what was sent. Please recount.")
             con.execute("UPDATE transfer_lines SET qty_received = ?, qty_damaged = ?"
                         " WHERE transfer_no = ? AND line_no = ?", (rec, dmg, transfer_no, dl["line_no"]))
             diff = rec - dl["qty_sent"]
@@ -671,7 +677,8 @@ def dispute_verdict(con, transfer_no, sla_hours, now=None):
     mismatches = [p for p in reconcile(con) if f"'{transfer_no}'" in p]
     intact = chain_ok and not mismatches
     pcs = sum(ln["qty_sent"] for ln in lines)
-    sent_txt = (f"{t['sent_by']} logged {pcs:g} pieces on {len(lines)} line(s) leaving plant {t['from_plant']} "
+    shown = f"{len(lines)} line(s)" if t["status"] == "IN_TRANSIT" else f"{pcs:g} pieces on {len(lines)} line(s)"
+    sent_txt = (f"{t['sent_by']} logged {shown} leaving plant {t['from_plant']} "
                 f"({t['from_dept']}) on {fmt_local(t['sent_at'])}"
                 + (f", on {t['vehicle_ref']}" if t["vehicle_ref"] else "") + ".")
     h = (now - from_iso(t["sent_at"])).total_seconds() / 3600
@@ -684,9 +691,9 @@ def dispute_verdict(con, transfer_no, sla_hours, now=None):
         custody = (f"Last confirmed hand-off: plant {t['from_plant']} to "
                    f"{t['vehicle_ref'] or 'the transport'} at {fmt_local(t['sent_at'])}. "
                    f"Nobody at plant {t['to_plant']} has signed for them yet.")
-        verdict = (f"The send is on record, so plant {t['from_plant']} did send the parts. "
-                   f"Plant {t['to_plant']} is also right that it hasn't received them: the gap is between the "
-                   f"two plants. Check the {'vehicle and ' if t['vehicle_ref'] else ''}the receiving dock first.")
+        verdict = (f"Plant {t['from_plant']} logged the send, and plant {t['to_plant']} has not confirmed receipt. "
+                   f"On the record, the parts are somewhere between the two plants. Check the "
+                   f"{'vehicle and ' if t['vehicle_ref'] else ''}the receiving dock first.")
         level = "alert" if h > sla_hours else "warn"
     else:
         rec = sum(ln["qty_received"] or 0 for ln in lines)
@@ -703,8 +710,8 @@ def dispute_verdict(con, transfer_no, sla_hours, now=None):
             short = [d for d in open_d if d["kind"] == "SHORT"]
             verdict = (f"The parts arrived but not all of them: {len(open_d)} discrepancy(ies) still open"
                        + (f", including {sum(d['qty'] or 0 for d in short):g} piece(s) short" if short else "")
-                       + f". The count happened at plant {t['to_plant']} and the sent quantity was hidden from the "
-                         f"counter, so the shortfall happened before the receipt: at dispatch or in transit.")
+                       + f". The count was done blind at plant {t['to_plant']}, so the gap is at dispatch, in transit, "
+                         f"or a miscount at receipt. A recount at both ends settles which.")
             level = "warn"
         else:
             verdict = "There were differences, and every one has been settled. See how below."

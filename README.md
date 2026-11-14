@@ -33,16 +33,16 @@ Needs Python 3.10 or newer. On macOS or Linux:
 Then open http://127.0.0.1:5050. The first run creates a virtual environment and installs Flask (about 20 seconds). Data is saved in `instance/sfg_tracker.db` and survives restarts.
 
 - `./run.sh reset` rebuilds the database with fresh demo data
-- `./run.sh test` runs the 17 automated checks
+- `./run.sh test` runs the 18 automated checks
 
 On Windows: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python app.py`.
 
 ## Three-minute demo
 
-1. **Settle a dispute.** On the dashboard, type `TRF-2026-00025` (sent 9 hours ago, never received, flagged by Plant 3). The verdict says who sent what, that nobody has signed for it, who last had the parts, and whether the record is intact.
+1. **Settle a dispute.** On the dashboard, type `TRF-2026-00025` (sent hours ago, never received, flagged by Plant 3). The verdict says who sent what, that nobody has signed for it, who last had the parts, and whether the record is intact.
 2. **Send.** Pick job order `JO-2026-1041` and plant `1200`. The parts the plant still owes are prefilled (here, the 2 dented end plates and 2 short side channels from an earlier trip); the destination is set by the job order. Click *Log as sent* and print the slip: it has a QR code and no quantities.
 3. **Receive.** Open the transfer and click *Receive*. The sent quantity is hidden (a blind count). Enter one less than you sent: the shortage becomes a discrepancy both plants see until someone records how it was settled.
-4. **Insights.** Two weeks of history: % received within 4 hours, median transit time per route, discrepancy rate per department, time to settle, and plain flags such as "Route 1200 to 1300: 3 of 11 transfers arrived with a discrepancy". A blank-input calculator turns your own numbers into a yearly figure.
+4. **Insights.** Two weeks of history: % received within 4 hours, median transit time per route, discrepancy rate per department, time to settle, and plain flags such as which route keeps arriving with discrepancies. A blank-input calculator turns your own numbers into a yearly figure.
 5. **Trail.** Every action in order. The page re-checks the hash chain and replays the log against the working tables on every load.
 6. **Job orders and SAP.** Per job order: required, in transit, received and still missing (what the job order system gets back). *SAP and job orders* shows the endpoints, the 303/305 mapping and the goods-movement export.
 
@@ -111,7 +111,7 @@ curl -X POST http://127.0.0.1:5050/api/transfers -H 'Content-Type: application/j
 
 ### SAP mapping
 
-Plant codes, material numbers, batch and unit of measure follow SAP's shape. A send maps to movement type 303 (out of the issuing plant, booked as stock in transfer at the receiving plant) and a receipt to 305 (from stock in transfer into unrestricted stock at the receiving plant). That is SAP's two-step plant-to-plant transfer; a one-step transfer (301) also exists. A shortage stays in stock in transfer until the rest is posted or the SAP team corrects it. The export columns follow the item fields of SAP's goods movement BAPI (BAPI_GOODSMVT_CREATE); storage location is left blank for the SAP team to supply. If Indus uses stock transport orders instead, postings become 351 (or 641) then 101 against the order number, so the tracker would also store that number. All of this is to be confirmed with the SAP team.
+Plant codes, material numbers, batch and unit of measure follow SAP's shape. A send maps to movement type 303 (out of the issuing plant, booked as stock in transfer at the receiving plant) and a receipt to 305 (from stock in transfer into unrestricted stock at the receiving plant). That is SAP's two-step plant-to-plant transfer; a one-step transfer (301) also exists. A shortage stays in stock in transfer until the rest is posted or the SAP team corrects it. The export columns follow the header and item fields of SAP's goods movement BAPI (BAPI_GOODSMVT_CREATE); storage location is left blank for the SAP team to supply. If Indus uses stock transport orders instead, postings become 351 (or 641) then 101 against the order number, so the tracker would also store that number. All of this is to be confirmed with the SAP team.
 
 ## Known limits
 
@@ -129,7 +129,7 @@ tracker/schema.sql     data model
 tracker/seed.py        builds the demo database
 data/                  dummy job order file and master data
 templates/, static/    UI
-tests/test_flow.py     17 end-to-end checks
+tests/test_flow.py     18 end-to-end checks
 run.sh                 one-command start
 render.yaml            config for an alternative host (Render); the live demo runs on PythonAnywhere
 ```
