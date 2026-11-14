@@ -17,7 +17,7 @@ Needs Python 3.10 or newer. On macOS or Linux:
 Then open http://127.0.0.1:5050. The first run creates a virtual environment and installs Flask (about 20 seconds). Data is saved in `instance/sfg_tracker.db` and survives restarts.
 
 - `./run.sh reset` rebuilds the database with fresh demo data
-- `./run.sh test` runs the 11 automated checks
+- `./run.sh test` runs the 15 automated checks
 
 On Windows: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`, `.venv\Scripts\python app.py`.
 
@@ -91,7 +91,7 @@ curl -X POST http://127.0.0.1:5050/api/transfers -H 'Content-Type: application/j
 
 ### SAP mapping
 
-Plant codes, material numbers, batch and unit of measure follow SAP's shape. A send maps to movement type 303 (out of the issuing plant into stock in transit) and a receipt to 305 (into stock at the receiving plant), SAP's standard two-step plant-to-plant transfer. A shortage stays in transit until found or written off. The export columns follow SAP's goods movement item fields. If Indus moves stock with stock transport orders instead, only the export mapping changes. All of this is to be confirmed with the SAP team.
+Plant codes, material numbers, batch and unit of measure follow SAP's shape. A send maps to movement type 303 (out of the issuing plant, booked as stock in transfer at the receiving plant) and a receipt to 305 (from stock in transfer into unrestricted stock at the receiving plant). That is SAP's two-step plant-to-plant transfer; a one-step transfer (301) also exists. A shortage stays in stock in transfer until the rest is posted or the SAP team corrects it. The export columns follow the item fields of SAP's goods movement BAPI (BAPI_GOODSMVT_CREATE); storage location is left blank for the SAP team to supply. If Indus uses stock transport orders instead, postings become 351 (or 641) then 101 against the order number, so the tracker would also store that number. All of this is to be confirmed with the SAP team.
 
 ## Known limits
 
@@ -109,7 +109,7 @@ tracker/schema.sql     data model
 tracker/seed.py        builds the demo database
 data/                  dummy job order file and master data
 templates/, static/    UI
-tests/test_flow.py     11 end-to-end checks
+tests/test_flow.py     15 end-to-end checks
 run.sh                 one-command start
 render.yaml            free hosted demo config
 ```

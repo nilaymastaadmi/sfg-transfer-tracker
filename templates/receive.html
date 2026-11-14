@@ -14,11 +14,11 @@
     <tr><th>#</th><th>Material</th><th>Batch</th><th>Received (counted)</th><th>Of which damaged</th></tr>
     {% for l in lines %}
     <tr>
-      <td>{{ l.line_no }}</td>
-      <td><b>{{ l.material_no }}</b><br><span class="muted small">{{ l.description }}</span></td>
-      <td class="small">{{ l.batch or '-' }}</td>
-      <td><input name="rec_{{ l.line_no }}" type="number" min="0" step="any" required value="{{ form['rec_' ~ l.line_no] }}" class="qty"> {{ l.uom }}</td>
-      <td><input name="dmg_{{ l.line_no }}" type="number" min="0" step="any" value="{{ form['dmg_' ~ l.line_no] or 0 }}" class="qty"></td>
+      <td data-label="Line">{{ l.line_no }}</td>
+      <td data-label="Material"><b>{{ l.material_no }}</b><br><span class="muted small">{{ l.description }}</span></td>
+      <td class="small" data-label="Batch">{{ l.batch or '-' }}</td>
+      <td data-label="Received (counted)"><input name="rec_{{ l.line_no }}" type="number" inputmode="decimal" min="0" step="any" required value="{{ form['rec_' ~ l.line_no] }}" class="qty"> {{ l.uom }}</td>
+      <td data-label="Of which damaged"><input name="dmg_{{ l.line_no }}" type="number" inputmode="decimal" min="0" step="any" value="{{ form['dmg_' ~ l.line_no] or 0 }}" class="qty"></td>
     </tr>
     {% endfor %}
   </table>

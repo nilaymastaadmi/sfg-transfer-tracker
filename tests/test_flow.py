@@ -154,4 +154,53 @@ def test_web_send_receive_and_api(tmp_path, monkeypatch):
         assert client.post("/api/transfers/TRF-2026-00004/receive", json=bad).status_code == 400
     assert client.post("/api/transfers", json=[1]).status_code == 400
     assert client.post("/api/transfers", json={"lines": [5]}).status_code == 400
+    assert client.post("/api/transfers", json={"from_plant": ["1200"], "job_order_no": {"a": 1}}).status_code == 400
+    slip = client.get("/transfers/TRF-2026-00001/slip").get_data(as_text=True)
+    assert "Counted at receipt" in slip and "20 EA" not in slip
+    v = client.get("/api/trail/verify").get_json()
+    assert v["ok"] and v["table_mismatches"] == []
     assert client.get("/api/trail/verify").get_json()["ok"]
+
+
+def test_route_and_quantity_follow_the_job_order(con):
+    with pytest.raises(core.TrackerError, match="assembled at plant 1300"):
+        send(con, from_plant="1200", from_dept="SM", to_plant="1100",
+             lines=[{"material_no": "SFG-SM-2001", "qty": 4}])
+    with pytest.raises(core.TrackerError, match="comes from plant 1100"):
+        send(con, from_plant="1200", from_dept="SM", lines=[{"material_no": "SFG-HDR-1001", "qty": 4}])
+    with pytest.raises(core.TrackerError, match="whole pieces"):
+        send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 2.5}])
+    with pytest.raises(core.TrackerError, match="at most 20 more"):
+        send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 21}])
+    tno = send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 20}])
+    with pytest.raises(core.TrackerError, match="at most 0 more"):
+        send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 1}])
+    # 2 arrive short: those 2 can be re-sent, but no more.
+    core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: {"qty_received": 18}})
+    with pytest.raises(core.TrackerError, match="at most 2 more"):
+        send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 3}])
+    send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 2}])
+
+
+def test_odd_input_types_get_a_message_not_a_crash(con):
+    with pytest.raises(core.TrackerError):
+        send(con, from_plant=["1100"])
+    with pytest.raises(core.TrackerError):
+        send(con, job_order_no={"a": 1})
+
+
+def test_reconcile_catches_direct_table_edits(con):
+    tno = send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 20}])
+    core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: {"qty_received": 18}})
+    assert core.reconcile(con) == []
+    con.execute("UPDATE transfer_lines SET qty_received = 20")      # hide the shortage
+    con.execute("UPDATE discrepancies SET status = 'RESOLVED'")
+    problems = core.reconcile(con)
+    assert len(problems) == 2 and core.verify_trail(con)[0]          # chain fine, tables caught
+
+
+def test_sap_receipt_is_capped_at_sent_quantity(con):
+    tno = send(con, lines=[{"material_no": "SFG-HDR-1001", "qty": 10}])
+    core.receive_transfer(con, tno, receiving_plant="1300", received_by="R", lines={1: {"qty_received": 12}})
+    r305 = [r for r in core.sap_goods_movements(con) if r["MOVE_TYPE"] == "305"][0]
+    assert r305["ENTRY_QNT"] == 10 and "2 excess not posted" in r305["ITEM_TEXT"]

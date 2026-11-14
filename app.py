@@ -290,9 +290,10 @@ def job_orders_sync():
 def trail():
     con = db()
     ok, n, bad = core.verify_trail(con)
+    problems = core.reconcile(con)
     rows = [dict(r, data=json.loads(r["payload"])) for r in
             con.execute("SELECT * FROM events ORDER BY id DESC")]
-    return render_template("trail.html", rows=rows, ok=ok, n=n, bad=bad)
+    return render_template("trail.html", rows=rows, ok=ok, n=n, bad=bad, problems=problems)
 
 
 @app.route("/integration")
@@ -389,7 +390,9 @@ def api_events():
 @app.get("/api/trail/verify")
 def api_verify():
     ok, n, bad = core.verify_trail(db())
-    return jsonify({"ok": ok, "events_checked": n, "first_bad_event_id": bad})
+    problems = core.reconcile(db())
+    return jsonify({"ok": ok and not problems, "chain_ok": ok, "events_checked": n,
+                    "first_bad_event_id": bad, "table_mismatches": problems})
 
 
 def csv_response(rows, filename, fields=None):

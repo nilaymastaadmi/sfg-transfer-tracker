@@ -38,6 +38,7 @@ def build(db_path, demo=True, now=None):
     if not demo:
         return con
 
+    # Events are created in time order, so the trail reads naturally.
     # 1. Clean transfer: headers to assembly, fully received yesterday.
     t1 = core.send_transfer(
         con, job_order_no="JO-2026-1041", from_plant="1100", from_dept="HDR", to_plant="1300",
@@ -48,7 +49,14 @@ def build(db_path, demo=True, now=None):
         con, t1, receiving_plant="1300", received_by="Ahmed S. (Assembly stores)",
         lines={1: {"qty_received": 20}, 2: {"qty_received": 20}}, now=ago(hours=25, minutes=20))
 
-    # 2. Quantity mismatch: 2 side channels short, 2 end plates dented.
+    # 2. Sent but never received: the classic dispute (Plant 3 flags it below).
+    t3 = core.send_transfer(
+        con, job_order_no="JO-2026-1042", from_plant="1100", from_dept="HDR", to_plant="1300",
+        lines=[{"material_no": "SFG-HDR-1003", "qty": 12, "batch": "H261114-03"},
+               {"material_no": "SFG-HDR-1004", "qty": 12, "batch": "H261114-04"}],
+        sent_by="Ravi K. (Headers)", vehicle_ref="Forklift trolley T-02", now=ago(hours=9))
+
+    # 3. Quantity mismatch: 2 side channels short, 2 end plates dented.
     t2 = core.send_transfer(
         con, job_order_no="JO-2026-1041", from_plant="1200", from_dept="SM", to_plant="1300",
         lines=[{"material_no": "SFG-SM-2001", "qty": 40, "batch": "S261114-07"},
@@ -66,12 +74,7 @@ def build(db_path, demo=True, now=None):
         resolution="2 dented end plates returned to Plant 2 for rework; replacements go on the next trip.",
         now=ago(hours=3))
 
-    # 3. Sent but never received: the classic dispute. Plant 3 has flagged it.
-    t3 = core.send_transfer(
-        con, job_order_no="JO-2026-1042", from_plant="1100", from_dept="HDR", to_plant="1300",
-        lines=[{"material_no": "SFG-HDR-1003", "qty": 12, "batch": "H261114-03"},
-               {"material_no": "SFG-HDR-1004", "qty": 12, "batch": "H261114-04"}],
-        sent_by="Ravi K. (Headers)", vehicle_ref="Forklift trolley T-02", now=ago(hours=9))
+    # Plant 3 flags transfer 2 as not received.
     core.report_not_received(
         con, t3, reported_by="Ahmed S. (Assembly stores)",
         note="Not on the receiving dock at shift change. Checked bay 3 and bay 4.", now=ago(hours=1))

@@ -28,5 +28,10 @@
   {% block body %}{% endblock %}
 </main>
 <footer class="wrap foot">Prototype for Indus International FZC. Dummy data: 3 plants, Headers and Sheet Metal SFGs, job orders from <code>data/job_orders.json</code>. Times in Gulf Standard Time.</footer>
+<script>
+document.querySelectorAll('form[method="post"]').forEach(f => f.addEventListener('submit', () => {
+  f.querySelectorAll('button[type="submit"], button:not([type])').forEach(b => { b.disabled = true; b.textContent = 'Saving...'; });
+}));
+</script>
 </body>
 </html>

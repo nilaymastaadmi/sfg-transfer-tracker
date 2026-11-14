@@ -5,6 +5,7 @@
   <div>
     <h1>Semi-finished goods moving between plants</h1>
     <p class="muted">Every send and every receipt is logged against a job order. Anything not confirmed within {{ SLA_HOURS|qty }} hours shows up here as overdue.</p>
+    <p class="small">Try it: <a href="{{ url_for('send') }}">send some parts</a>, then <a href="{{ url_for('receive_queue') }}">receive them</a> with a different count, and watch the discrepancy and the <a href="{{ url_for('trail') }}">trail</a>. The demo starts with sample data for 3 plants and 4 job orders.</p>
   </div>
   <div class="hero-actions">
     <a class="btn primary" href="{{ url_for('send') }}">Send parts</a>

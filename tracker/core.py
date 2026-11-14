@@ -110,6 +110,41 @@ def verify_trail(con):
     return True, n, None
 
 
+def reconcile(con):
+    """Replay the trail and compare it with the working tables (transfers,
+    lines, discrepancies). The trail is the source of truth: if someone edits
+    a quantity or a status directly in the database, it shows up here.
+    Returns a list of mismatches; empty means everything agrees."""
+    tr, ln, ds = {}, {}, {}
+    for e in con.execute("SELECT * FROM events ORDER BY id"):
+        p, t = json.loads(e["payload"]), e["transfer_no"]
+        if e["event_type"] == "TRANSFER_SENT":
+            tr[t] = (p["job_order_no"], p["from_plant"], p["to_plant"], "IN_TRANSIT")
+            for x in p["lines"]:
+                ln[(t, x["line_no"])] = (x["material_no"], x["qty_sent"], None, None)
+        elif e["event_type"] == "TRANSFER_RECEIVED":
+            tr[t] = tr[t][:3] + (p["status"],)
+            for x in p["lines"]:
+                mat, sent, _, _ = ln[(t, x["line_no"])]
+                ln[(t, x["line_no"])] = (mat, sent, x["qty_received"], x["qty_damaged"])
+        elif e["event_type"] == "DISCREPANCY_RAISED":
+            ds[p["discrepancy_id"]] = (t, p["kind"], p.get("qty"), "OPEN")
+        elif e["event_type"] == "DISCREPANCY_RESOLVED":
+            ds[p["discrepancy_id"]] = ds[p["discrepancy_id"]][:3] + ("RESOLVED",)
+    problems = []
+    db_tr = {r["transfer_no"]: (r["job_order_no"], r["from_plant"], r["to_plant"], r["status"])
+             for r in con.execute("SELECT * FROM transfers")}
+    db_ln = {(r["transfer_no"], r["line_no"]): (r["material_no"], r["qty_sent"], r["qty_received"], r["qty_damaged"])
+             for r in con.execute("SELECT * FROM transfer_lines")}
+    db_ds = {r["id"]: (r["transfer_no"], r["kind"], r["qty"], r["status"])
+             for r in con.execute("SELECT * FROM discrepancies")}
+    for name, trail, table in (("transfer", tr, db_tr), ("line", ln, db_ln), ("discrepancy", ds, db_ds)):
+        for k in sorted(set(trail) | set(table), key=str):
+            if trail.get(k) != table.get(k):
+                problems.append(f"{name} {k}: trail says {trail.get(k)}, table says {table.get(k)}")
+    return problems
+
+
 # --- master data and the job order file ------------------------------------
 
 def load_master_data(con, path):
@@ -192,13 +227,14 @@ def send_transfer(con, *, job_order_no, from_plant, from_dept, to_plant, lines,
     """
     now = now or utcnow()
     ts = to_iso(now)
-    vehicle_ref = str(vehicle_ref or "").strip()
-    note = str(note or "").strip()
+    vehicle_ref = _s(vehicle_ref)
+    note = _s(note)
     # Validate inside the write transaction so a job order sync can't change
     # the job order between the check and the insert.
     with tx(con):
         clean = _validate_send(con, job_order_no, from_plant, from_dept, to_plant, lines, sent_by)
-        sent_by = str(sent_by).strip()
+        sent_by = _s(sent_by)
+        job_order_no, from_plant, from_dept, to_plant = map(_s, (job_order_no, from_plant, from_dept, to_plant))
         tno = _next_transfer_no(con, now.year)
         con.execute(
             "INSERT INTO transfers (transfer_no, job_order_no, from_plant, from_dept, to_plant, status,"
@@ -218,8 +254,14 @@ def send_transfer(con, *, job_order_no, from_plant, from_dept, to_plant, lines,
     return tno
 
 
+def _s(v):
+    """Ids from forms or JSON as plain strings, so odd input gets a clear message, not a crash."""
+    return v.strip() if isinstance(v, str) else ""
+
+
 def _validate_send(con, job_order_no, from_plant, from_dept, to_plant, lines, sent_by):
-    sent_by = str(sent_by or "").strip()
+    job_order_no, from_plant, from_dept, to_plant = map(_s, (job_order_no, from_plant, from_dept, to_plant))
+    sent_by = _s(sent_by)
     if not sent_by:
         raise TrackerError("Enter the name of the person sending the parts.")
     if from_plant == to_plant:
@@ -239,8 +281,11 @@ def _validate_send(con, job_order_no, from_plant, from_dept, to_plant, lines, se
         raise TrackerError("Pick a job order. Every transfer must belong to a job order.")
     if jo["status"] not in ("RELEASED", "IN_PROGRESS"):
         raise TrackerError(f"Job order {job_order_no} is {jo['status']}; parts can't be sent against it.")
-    bom = {r["material_no"] for r in con.execute(
-        "SELECT material_no FROM job_order_components WHERE job_order_no = ?", (job_order_no,))}
+    if to_plant != jo["assembly_plant"]:
+        raise TrackerError(f"Job order {job_order_no} is assembled at plant {jo['assembly_plant']}; "
+                           f"send its parts there, not to {to_plant}.")
+    bom = {r["material_no"]: r for r in con.execute(
+        "SELECT * FROM job_order_components WHERE job_order_no = ?", (job_order_no,))}
 
     clean = []
     if not isinstance(lines, list):
@@ -259,6 +304,24 @@ def _validate_send(con, job_order_no, from_plant, from_dept, to_plant, lines, se
             raise TrackerError(f"Line {i}: unknown material {mat}.")
         if mat not in bom:
             raise TrackerError(f"Line {i}: {mat} is not on job order {job_order_no}'s bill of materials.")
+        if m["uom"] == "EA" and qty != int(qty):
+            raise TrackerError(f"Line {i}: {mat} is counted in whole pieces.")
+        comp = bom[mat]
+        if from_plant != comp["supply_plant"]:
+            raise TrackerError(f"Line {i}: for {job_order_no}, {mat} comes from plant {comp['supply_plant']}, "
+                               f"not {from_plant}.")
+        # Allowed = required minus what is already good at the assembly plant or on the way.
+        # A short or damaged receipt frees up room, so the missing pieces can be re-sent.
+        done = con.execute(
+            "SELECT COALESCE(SUM(CASE WHEN t.status = 'IN_TRANSIT' THEN l.qty_sent"
+            " ELSE l.qty_received - COALESCE(l.qty_damaged, 0) END), 0)"
+            " FROM transfer_lines l JOIN transfers t USING (transfer_no)"
+            " WHERE t.job_order_no = ? AND l.material_no = ? AND t.to_plant = ?",
+            (job_order_no, mat, jo["assembly_plant"])).fetchone()[0]
+        room = comp["qty_required"] - done
+        if qty > room:
+            raise TrackerError(f"Line {i}: {job_order_no} needs {comp['qty_required']:g} x {mat}; "
+                               f"{done:g} are already received or on the way, so at most {max(room, 0):g} more can be sent.")
         clean.append({"material_no": mat, "qty": qty, "uom": m["uom"],
                       "batch": str(ln.get("batch") or "").strip()})
     if not clean:
@@ -276,8 +339,9 @@ def receive_transfer(con, transfer_no, *, receiving_plant, received_by, lines, n
     lines: {line_no: {"qty_received": x, "qty_damaged": y}} for every line.
     Any difference against what was sent becomes a discrepancy automatically.
     """
-    received_by = str(received_by or "").strip()
-    note = str(note or "").strip()
+    received_by = _s(received_by)
+    receiving_plant = _s(receiving_plant)
+    note = _s(note)
     if not received_by:
         raise TrackerError("Enter the name of the person receiving the parts.")
     now = now or utcnow()
@@ -360,7 +424,8 @@ def _resolve(con, disc_id, actor, resolution, ts):
 def report_not_received(con, transfer_no, *, reported_by, note="", now=None):
     """Either plant flags that a transfer has not arrived. It stays in transit,
     so it can still be received if the parts turn up."""
-    reported_by = (reported_by or "").strip()
+    reported_by = _s(reported_by)
+    note = _s(note)
     if not reported_by:
         raise TrackerError("Enter your name.")
     ts = to_iso(now or utcnow())
@@ -378,8 +443,8 @@ def report_not_received(con, transfer_no, *, reported_by, note="", now=None):
 
 
 def resolve_discrepancy(con, disc_id, *, resolved_by, resolution, now=None):
-    resolved_by = (resolved_by or "").strip()
-    resolution = (resolution or "").strip()
+    resolved_by = _s(resolved_by)
+    resolution = _s(resolution)
     if not resolved_by or not resolution:
         raise TrackerError("Enter your name and how the discrepancy was settled.")
     ts = to_iso(now or utcnow())
@@ -441,9 +506,10 @@ def job_order_status(con, job_order_no):
 def sap_goods_movements(con):
     """Turn the trail into SAP-style goods movement lines.
 
-    Send = movement type 303 (plant-to-plant, removal from issuing plant into
-    stock in transit). Receive = 305 (placement in storage at the receiving
-    plant). Column names follow the item fields of SAP's standard goods
+    Send = movement type 303 (out of the issuing plant, booked as stock in
+    transfer at the receiving plant). Receive = 305 (from stock in transfer
+    into unrestricted stock at the receiving plant). STGE_LOC is left for the
+    SAP team; MOVE_PLANT on the 305 line is to be confirmed. Column names follow the item fields of SAP's standard goods
     movement BAPI so the file maps one-to-one; to be confirmed with Indus's
     SAP team. Damaged quantities are still posted as received and flagged.
     """
@@ -454,6 +520,14 @@ def sap_goods_movements(con):
         t = con.execute("SELECT * FROM transfers WHERE transfer_no = ?", (e["transfer_no"],)).fetchone()
         for ln in p["lines"]:
             sent = e["event_type"] == "TRANSFER_SENT"
+            # SAP can't receive more than is in transfer: cap the 305 at the sent
+            # quantity and leave the excess for a separate, checked posting.
+            qty = ln["qty_sent"] if sent else min(ln["qty_received"], ln["qty_sent"])
+            notes = [t["job_order_no"]]
+            if not sent and ln["qty_received"] > ln["qty_sent"]:
+                notes.append(f"{ln['qty_received'] - ln['qty_sent']:g} excess not posted")
+            if not sent and ln.get("qty_damaged"):
+                notes.append(f"{ln['qty_damaged']:g} damaged")
             batch = con.execute("SELECT batch, uom FROM transfer_lines WHERE transfer_no = ? AND line_no = ?",
                                 (e["transfer_no"], ln["line_no"])).fetchone()
             rows.append({
@@ -465,11 +539,10 @@ def sap_goods_movements(con):
                 "PLANT": t["from_plant"] if sent else t["to_plant"],
                 "STGE_LOC": "",
                 "BATCH": batch["batch"] or "",
-                "ENTRY_QNT": ln["qty_sent"] if sent else ln["qty_received"],
+                "ENTRY_QNT": qty,
                 "ENTRY_UOM": batch["uom"],
                 "MOVE_PLANT": t["to_plant"] if sent else t["from_plant"],
-                "ITEM_TEXT": t["job_order_no"]
-                             + ("" if sent or not ln.get("qty_damaged") else f"; {ln['qty_damaged']:g} damaged"),
+                "ITEM_TEXT": "; ".join(notes),
                 "POSTED_IN_SAP": "N",
             })
     return rows

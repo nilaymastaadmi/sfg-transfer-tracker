@@ -5,7 +5,7 @@
 <div class="hero">
   <div>
     <h1>The trail</h1>
-    <p class="muted">Every action, oldest at the bottom. The database refuses edits and deletes on this table, and each row stores a hash of the row before it. If anyone changed a row directly in the file, the check below would fail and point at the row.</p>
+    <p class="muted">Every action, newest first. The database refuses edits and deletes on this log, and each row stores a hash of the row before it. On every load the page re-checks the chain and replays the log against the working tables, so a direct edit to the database shows up here. Someone with full database access could still rebuild the whole chain; the next step would be to send the latest hash outside the database each day.</p>
   </div>
   <div class="hero-actions">
     <a class="btn small" href="{{ url_for('export_events') }}">Download CSV</a>
@@ -13,7 +13,11 @@
   </div>
 </div>
 <div class="flash {{ 'ok' if ok else 'error' }}">
-  {% if ok %}Hash chain verified: all {{ n }} events intact.{% else %}Chain broken at event {{ bad }}. That row or one before it was changed outside the app.{% endif %}
+  {% if ok %}Hash chain verified: all {{ n }} events intact.{% else %}Chain broken at event {{ bad }}. That row or one before it was changed or removed outside the app.{% endif %}
+</div>
+<div class="flash {{ 'ok' if not problems else 'error' }}">
+  {% if not problems %}Replayed the trail: every transfer, quantity and discrepancy in the working tables matches it.
+  {% else %}The working tables disagree with the trail in {{ problems|length }} place(s), so something was edited outside the app:<ul class="small">{% for p in problems[:10] %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
 </div>
 <section class="card">
 <table>

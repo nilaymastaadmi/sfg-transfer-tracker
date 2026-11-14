@@ -25,7 +25,7 @@
     </div>
     <div class="box">
       <b>SAP</b><div class="small muted">inventory and valuation</div>
-      <div class="small">plant, material, batch, stock in transit</div>
+      <div class="small">plant, material, batch, stock in transfer</div>
     </div>
   </div>
 </section>
@@ -53,13 +53,13 @@
     <tr><td>material_no</td><td>Material (MATNR), type HALB for semi-finished</td></tr>
     <tr><td>batch</td><td>Batch (CHARG)</td></tr>
     <tr><td>uom</td><td>Base unit (MEINS)</td></tr>
-    <tr><td>Send</td><td>Movement type 303: out of the issuing plant into stock in transit</td></tr>
-    <tr><td>Receive</td><td>Movement type 305: into stock at the receiving plant</td></tr>
-    <tr><td>Short quantity</td><td>Stays in transit in SAP until found or written off</td></tr>
+    <tr><td>Send</td><td>Movement type 303: out of the issuing plant, booked as stock in transfer at the receiving plant</td></tr>
+    <tr><td>Receive</td><td>Movement type 305: from stock in transfer into unrestricted stock at the receiving plant</td></tr>
+    <tr><td>Short quantity</td><td>Stays in stock in transfer until the rest is posted or the SAP team corrects it</td></tr>
     <tr><td>transfer_no</td><td>Reference document (REF_DOC_NO)</td></tr>
     <tr><td>job_order_no</td><td>Production order, once job orders live in SAP</td></tr>
   </table>
-  <p class="small muted">Movement types assume SAP's standard two-step plant-to-plant transfer. If Indus uses stock transport orders instead, only the export mapping changes. To confirm with the SAP team.</p>
+  <p class="small muted">This assumes SAP's two-step plant-to-plant transfer (303 then 305); a one-step transfer (301) also exists. If Indus moves stock with stock transport orders, the postings become 351 (or 641) then 101 against the order number, so the tracker would also store that number. Storage location is blank in the export for the SAP team to supply. All of this is to confirm with Indus's SAP team.</p>
 </section>
 </div>
 {% endblock %}

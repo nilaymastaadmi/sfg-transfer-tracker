@@ -43,10 +43,10 @@
     <tr><th>#</th><th>Material</th><th>Quantity</th><th>Batch (optional)</th></tr>
     {% for i in range(1, 6) %}
     <tr>
-      <td>{{ i }}</td>
-      <td><select name="material_{{ i }}" class="mat" data-val="{{ form['material_' ~ i] }}"><option value="">-</option></select></td>
-      <td><input name="qty_{{ i }}" type="number" min="0" step="any" value="{{ form['qty_' ~ i] }}" class="qty"></td>
-      <td><input name="batch_{{ i }}" value="{{ form['batch_' ~ i] }}" placeholder="e.g. H261114-01"></td>
+      <td data-label="Line">{{ i }}</td>
+      <td data-label="Material"><select name="material_{{ i }}" class="mat" data-val="{{ form['material_' ~ i] }}"><option value="">-</option></select></td>
+      <td data-label="Quantity"><input name="qty_{{ i }}" type="number" inputmode="decimal" min="0" step="any" value="{{ form['qty_' ~ i] }}" class="qty"></td>
+      <td data-label="Batch (optional)"><input name="batch_{{ i }}" value="{{ form['batch_' ~ i] }}" placeholder="e.g. H261114-01"></td>
     </tr>
     {% endfor %}
   </table>
